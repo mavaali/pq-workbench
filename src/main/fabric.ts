@@ -1,7 +1,7 @@
 import { getToken } from './auth';
 
 const BASE_URL = 'https://api.fabric.microsoft.com/v1';
-const EVALUATE_ENDPOINT = '/query/evaluate'; // stub — confirm with Fabric API docs
+const EVALUATE_PATH = '/executeQuery';
 
 export interface FabricWorkspace {
   id: string;
@@ -95,17 +95,16 @@ export async function evaluateQuery(
   topN = 100
 ): Promise<QueryResult> {
   const start = Date.now();
-  // Stub endpoint — real path TBD from Fabric API docs
   const data = await fabricFetch<{ columns: ColumnSchema[]; rows: Record<string, unknown>[] }>(
-    `/workspaces/${encodeURIComponent(workspaceId)}/dataflows/${encodeURIComponent(dataflowId)}${EVALUATE_ENDPOINT}`,
+    `/workspaces/${encodeURIComponent(workspaceId)}/dataflows/${encodeURIComponent(dataflowId)}${EVALUATE_PATH}`,
     {
       method: 'POST',
-      body: JSON.stringify({ expression, topN }),
+      body: JSON.stringify({ query: expression }),
     }
   );
   return {
     columns: data.columns,
-    rows: data.rows,
+    rows: data.rows.slice(0, topN),
     rowCount: data.rows.length,
     executionTimeMs: Date.now() - start,
   };
