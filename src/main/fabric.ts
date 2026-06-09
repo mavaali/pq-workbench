@@ -57,12 +57,8 @@ async function fabricFetch<T>(path: string, options: RequestInit = {}): Promise<
     } catch {
       body = await res.text();
     }
-    const err: FabricError = {
-      code: `HTTP_${res.status}`,
-      message: typeof body === 'string' ? body : JSON.stringify(body),
-      statusCode: res.status,
-    };
-    throw err;
+    const detail = typeof body === 'string' ? body : JSON.stringify(body);
+    throw new Error(`Fabric API ${res.status}: ${detail}`);
   }
   return res.json() as Promise<T>;
 }
