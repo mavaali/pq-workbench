@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
     signIn: () => invoke(IPC_CHANNELS.AUTH_SIGN_IN),
     signOut: () => invoke<void>(IPC_CHANNELS.AUTH_SIGN_OUT),
     getStatus: () => invoke(IPC_CHANNELS.AUTH_STATUS),
+    pollCompletion: () => invoke(IPC_CHANNELS.AUTH_POLL),
   },
   mcp: {
     getStatus: () => invoke<{ connected: boolean }>(IPC_CHANNELS.MCP_STATUS),

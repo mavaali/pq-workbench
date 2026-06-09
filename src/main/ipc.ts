@@ -19,6 +19,10 @@ export function registerIpcHandlers(): void {
     return auth.getStatus();
   });
 
+  ipcMain.handle(IPC_CHANNELS.AUTH_POLL, async () => {
+    return auth.pollAuthCompletion();
+  });
+
   // MCP server status
   ipcMain.handle(IPC_CHANNELS.MCP_STATUS, async () => {
     return { connected: mcpClient.connected };

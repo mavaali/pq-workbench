@@ -14,19 +14,31 @@ export async function signIn(): Promise<AuthStatus> {
   const result = await mcpClient.callTool('start_device_code_auth', {}, 30_000);
   const text = McpClient.parseText(result);
 
+  console.log('[Auth] Device code response:', text);
+
   // Extract device code and URL from response
   const urlMatch = text.match(/https:\/\/microsoft\.com\/devicelogin/i)
-    || text.match(/https:\/\/[^\s]+devicelogin[^\s]*/i);
-  const codeMatch = text.match(/code[:\s]+[`"']?([A-Z0-9]{6,12})[`"']?/i)
-    || text.match(/([A-Z0-9]{6,12})/);
+    || text.match(/https:\/\/[^\s"]+devicelogin[^\s"]*/i);
+  const codeMatch = text.match(/code[:\s]+[`"'*]*([A-Z0-9]{6,12})[`"'*]*/i)
+    || text.match(/\b([A-Z][A-Z0-9]{5,11})\b/);
 
   const verificationUrl = urlMatch ? urlMatch[0] : 'https://microsoft.com/devicelogin';
-  const deviceCode = codeMatch ? codeMatch[1] : undefined;
+  const deviceCode = codeMatch ? codeMatch[1] : 'CHECK TERMINAL';
 
   // Open the verification URL in system browser
   await shell.openExternal(verificationUrl);
 
-  // Poll for completion
+  // Return immediately with the device code so the UI can show it
+  // The caller will need to poll for completion
+  return {
+    signedIn: false,
+    deviceCode,
+    verificationUrl,
+    userName: `Enter code: ${deviceCode}`,
+  };
+}
+
+export async function pollAuthCompletion(): Promise<AuthStatus> {
   for (let i = 0; i < 24; i++) {
     await new Promise(r => setTimeout(r, 5000));
     try {
@@ -40,14 +52,11 @@ export async function signIn(): Promise<AuthStatus> {
       if (lower.includes('expired') || lower.includes('denied') || lower.includes('failed')) {
         throw new Error(`Authentication failed: ${statusText}`);
       }
-      // Still pending — keep polling
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes('expired') || msg.includes('denied')) throw e;
-      // Other errors during polling — keep trying
     }
   }
-
   throw new Error('Authentication timed out after 2 minutes');
 }
 

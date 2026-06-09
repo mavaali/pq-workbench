@@ -70,8 +70,18 @@ export function useFabric() {
     setError(null);
     try {
       if (api) {
-        const status = await api.auth.signIn();
-        setAuthStatus(status);
+        // Phase 1: Get device code (opens browser)
+        const codeStatus = await api.auth.signIn();
+        setAuthStatus(codeStatus);
+        
+        if (codeStatus.deviceCode) {
+          setError(`Enter code: ${codeStatus.deviceCode} at microsoft.com/devicelogin`);
+        }
+
+        // Phase 2: Poll for completion
+        const finalStatus = await api.auth.pollCompletion();
+        setAuthStatus(finalStatus);
+        setError(null);
       } else {
         setAuthStatus({ signedIn: true, userName: 'Dev User', tenantId: 'dev-tenant' });
       }
