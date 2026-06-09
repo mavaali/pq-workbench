@@ -5,7 +5,7 @@ import { registerIpcHandlers } from './ipc';
 const isDev = !app.isPackaged;
 
 function createWindow(): void {
-  const preloadPath = path.join(__dirname, '..', 'main', 'preload', 'preload.js');
+  const preloadPath = path.join(__dirname, '..', 'preload', 'preload.js');
 
   const win = new BrowserWindow({
     width: 1400,
