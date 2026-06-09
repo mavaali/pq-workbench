@@ -49,15 +49,19 @@ export function useFabric() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-check az login status on mount
+  // Auto-check auth status on mount
   useEffect(() => {
     (async () => {
       try {
         if (api) {
           const status = await api.auth.getStatus();
           setAuthStatus(status);
+          if (status.signedIn) {
+            const ws = await api.fabric.listWorkspaces();
+            setWorkspaces(ws);
+          }
         }
-      } catch { /* not logged in */ }
+      } catch { /* not logged in or MCP not ready */ }
     })();
   }, []);
 
