@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type {
   AuthStatus,
   FabricWorkspace,
@@ -9,7 +9,7 @@ import type {
   LlmAvailability,
 } from '../types/api';
 
-const api = typeof window !== 'undefined' ? (window as Window).pqWorkbench : undefined;
+const api = typeof window !== 'undefined' ? (window as any).pqWorkbench : undefined;
 
 // Mock data used when the IPC bridge is unavailable (running in browser dev mode)
 const MOCK_WORKSPACES: FabricWorkspace[] = [
@@ -48,6 +48,18 @@ export function useFabric() {
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-check az login status on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        if (api) {
+          const status = await api.auth.getStatus();
+          setAuthStatus(status);
+        }
+      } catch { /* not logged in */ }
+    })();
+  }, []);
 
   const signIn = useCallback(async () => {
     setLoading(true);
