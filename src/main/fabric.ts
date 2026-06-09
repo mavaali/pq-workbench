@@ -58,6 +58,13 @@ async function fabricFetch<T>(path: string, options: RequestInit = {}): Promise<
       body = await res.text();
     }
     const detail = typeof body === 'string' ? body : JSON.stringify(body);
+    if (res.status === 403 && detail.includes('InsufficientScopes')) {
+      throw new Error(
+        'Insufficient permissions: The executeQuery API requires Dataflow.Execute.All scope. ' +
+        'The Azure CLI token only has user_impersonation. ' +
+        'Register a dedicated app with Dataflow.Execute.All permission to enable query execution.'
+      );
+    }
     throw new Error(`Fabric API ${res.status}: ${detail}`);
   }
   return res.json() as Promise<T>;
