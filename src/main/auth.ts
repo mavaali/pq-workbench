@@ -1,9 +1,4 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-
-const execFileAsync = promisify(execFile);
-
-const FABRIC_RESOURCE = 'https://api.fabric.microsoft.com';
+import { mcpClient, McpClient } from './mcp-client';
 
 export interface AuthStatus {
   signedIn: boolean;
@@ -11,79 +6,44 @@ export interface AuthStatus {
   tenantId?: string;
 }
 
-interface AzTokenResponse {
-  accessToken: string;
-  expiresOn: string;
-  tenant: string;
-}
-
-interface AzAccountResponse {
-  user: { name: string; type: string };
-  tenantId: string;
-  name: string;
-}
-
-async function azPath(): Promise<string> {
-  try {
-    const { stdout } = await execFileAsync('/usr/bin/which', ['az'], { timeout: 5_000 });
-    return stdout.trim();
-  } catch {
-    throw new Error('Azure CLI (az) not found. Install from https://aka.ms/install-az-cli');
-  }
-}
-
 export async function signIn(): Promise<AuthStatus> {
-  const az = await azPath();
-  // Check if already logged in
-  try {
-    const status = await getStatus();
-    if (status.signedIn) return status;
-  } catch { /* not logged in */ }
-
-  // Launch interactive login
-  await execFileAsync(az, ['login', '--output', 'none'], { timeout: 120_000 });
-  return getStatus();
+  // Interactive AAD auth — opens browser via MCP server
+  const result = await mcpClient.callTool('authenticate_interactive', {}, 120_000);
+  return parseAuthStatus(result);
 }
 
 export async function signOut(): Promise<void> {
-  const az = await azPath();
-  await execFileAsync(az, ['logout'], { timeout: 10_000 }).catch(() => {});
+  try {
+    await mcpClient.callTool('sign_out', {});
+  } catch {
+    // sign_out may not be implemented; ignore
+  }
 }
 
 export async function getStatus(): Promise<AuthStatus> {
   try {
-    const az = await azPath();
-    const { stdout } = await execFileAsync(
-      az,
-      ['account', 'show', '--output', 'json'],
-      { timeout: 10_000 }
-    );
-    const account: AzAccountResponse = JSON.parse(stdout);
-    return {
-      signedIn: true,
-      userName: account.user?.name,
-      tenantId: account.tenantId,
-    };
+    const result = await mcpClient.callTool('get_authentication_status', {});
+    return parseAuthStatus(result);
   } catch {
     return { signedIn: false };
   }
 }
 
-export async function getToken(): Promise<string> {
-  const az = await azPath();
+function parseAuthStatus(result: import('./mcp-client').McpToolResult): AuthStatus {
+  const text = McpClient.parseText(result);
+
+  // Try JSON first
   try {
-    const { stdout } = await execFileAsync(
-      az,
-      ['account', 'get-access-token', '--resource', FABRIC_RESOURCE, '--output', 'json'],
-      { timeout: 30_000 }
-    );
-    const response: AzTokenResponse = JSON.parse(stdout);
-    return response.accessToken;
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('AADSTS') || msg.includes('Please run')) {
-      throw new Error('Azure CLI session expired. Click Sign In to re-authenticate.');
-    }
-    throw new Error(`Failed to get Fabric token: ${msg}`);
-  }
+    const data = JSON.parse(text) as Record<string, unknown>;
+    return {
+      signedIn: Boolean(data.authenticated ?? data.signedIn ?? data.isAuthenticated ?? true),
+      userName: (data.userName ?? data.username ?? data.user ?? data.displayName) as string | undefined,
+      tenantId: (data.tenantId ?? data.tenant) as string | undefined,
+    };
+  } catch { /* not JSON — fall through */ }
+
+  // Heuristic: if the text contains "authenticated" or similar, treat as signed in
+  const lower = text.toLowerCase();
+  const signedIn = lower.includes('authenticated') || lower.includes('signed in') || lower.includes('success');
+  return { signedIn, userName: signedIn ? text.split('\n')[0].slice(0, 100) : undefined };
 }

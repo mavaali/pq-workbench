@@ -1,5 +1,6 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
-import { IPC_CHANNELS, isAllowedChannel } from '../shared/channels';
+import { IPC_CHANNELS } from '../shared/channels';
+import { mcpClient } from './mcp-client';
 import * as auth from './auth';
 import * as fabric from './fabric';
 import * as llm from './llm';
@@ -16,6 +17,11 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.AUTH_STATUS, async () => {
     return auth.getStatus();
+  });
+
+  // MCP server status
+  ipcMain.handle(IPC_CHANNELS.MCP_STATUS, async () => {
+    return { connected: mcpClient.connected };
   });
 
   // Fabric
