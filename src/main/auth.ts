@@ -1,28 +1,9 @@
-import {
-  PublicClientApplication,
-  Configuration,
-  AuthenticationResult,
-  AccountInfo,
-} from '@azure/msal-node';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 
-const MSAL_CONFIG: Configuration = {
-  auth: {
-    clientId: process.env.PQ_WORKBENCH_CLIENT_ID || '00000000-0000-0000-0000-000000000000',
-    authority: 'https://login.microsoftonline.com/organizations',
-  },
-};
+const execFileAsync = promisify(execFile);
 
-const FABRIC_SCOPES = ['https://api.fabric.microsoft.com/.default'];
-
-let pca: PublicClientApplication | null = null;
-let cachedAccount: AccountInfo | null = null;
-
-function getClient(): PublicClientApplication {
-  if (!pca) {
-    pca = new PublicClientApplication(MSAL_CONFIG);
-  }
-  return pca;
-}
+const FABRIC_RESOURCE = 'https://api.fabric.microsoft.com';
 
 export interface AuthStatus {
   signedIn: boolean;
@@ -30,63 +11,79 @@ export interface AuthStatus {
   tenantId?: string;
 }
 
+interface AzTokenResponse {
+  accessToken: string;
+  expiresOn: string;
+  tenant: string;
+}
+
+interface AzAccountResponse {
+  user: { name: string; type: string };
+  tenantId: string;
+  name: string;
+}
+
+async function azPath(): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('/usr/bin/which', ['az'], { timeout: 5_000 });
+    return stdout.trim();
+  } catch {
+    throw new Error('Azure CLI (az) not found. Install from https://aka.ms/install-az-cli');
+  }
+}
+
 export async function signIn(): Promise<AuthStatus> {
-  const client = getClient();
-  const result: AuthenticationResult = await client.acquireTokenInteractive({
-    scopes: FABRIC_SCOPES,
-    openBrowser: async () => {
-      // Electron will handle the redirect
-    },
-  });
-  cachedAccount = result.account;
-  return {
-    signedIn: true,
-    userName: result.account?.name ?? result.account?.username,
-    tenantId: result.account?.tenantId,
-  };
+  const az = await azPath();
+  // Check if already logged in
+  try {
+    const status = await getStatus();
+    if (status.signedIn) return status;
+  } catch { /* not logged in */ }
+
+  // Launch interactive login
+  await execFileAsync(az, ['login', '--output', 'none'], { timeout: 120_000 });
+  return getStatus();
 }
 
 export async function signOut(): Promise<void> {
-  const client = getClient();
-  if (cachedAccount) {
-    const cache = client.getTokenCache();
-    const accounts = await cache.getAllAccounts();
-    for (const acct of accounts) {
-      await cache.removeAccount(acct);
-    }
-  }
-  cachedAccount = null;
+  const az = await azPath();
+  await execFileAsync(az, ['logout'], { timeout: 10_000 }).catch(() => {});
 }
 
 export async function getStatus(): Promise<AuthStatus> {
-  if (!cachedAccount) {
+  try {
+    const az = await azPath();
+    const { stdout } = await execFileAsync(
+      az,
+      ['account', 'show', '--output', 'json'],
+      { timeout: 10_000 }
+    );
+    const account: AzAccountResponse = JSON.parse(stdout);
+    return {
+      signedIn: true,
+      userName: account.user?.name,
+      tenantId: account.tenantId,
+    };
+  } catch {
     return { signedIn: false };
   }
-  return {
-    signedIn: true,
-    userName: cachedAccount.name ?? cachedAccount.username,
-    tenantId: cachedAccount.tenantId,
-  };
 }
 
-export async function getToken(scopes: string[] = FABRIC_SCOPES): Promise<string> {
-  const client = getClient();
-  if (!cachedAccount) {
-    throw new Error('Not signed in. Call signIn() first.');
-  }
+export async function getToken(): Promise<string> {
+  const az = await azPath();
   try {
-    const result = await client.acquireTokenSilent({
-      scopes,
-      account: cachedAccount,
-    });
-    return result.accessToken;
-  } catch {
-    // Fallback to interactive
-    const result = await client.acquireTokenInteractive({
-      scopes,
-      openBrowser: async () => {},
-    });
-    cachedAccount = result.account;
-    return result.accessToken;
+    const { stdout } = await execFileAsync(
+      az,
+      ['account', 'get-access-token', '--resource', FABRIC_RESOURCE, '--output', 'json'],
+      { timeout: 30_000 }
+    );
+    const response: AzTokenResponse = JSON.parse(stdout);
+    return response.accessToken;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('AADSTS') || msg.includes('Please run')) {
+      throw new Error('Azure CLI session expired. Click Sign In to re-authenticate.');
+    }
+    throw new Error(`Failed to get Fabric token: ${msg}`);
   }
 }
