@@ -17,12 +17,13 @@ export async function signIn(): Promise<AuthStatus> {
   console.log('[Auth] Device code response:', text);
 
   // Extract device code and URL from response
-  const urlMatch = text.match(/https:\/\/microsoft\.com\/devicelogin/i)
-    || text.match(/https:\/\/[^\s"]+devicelogin[^\s"]*/i);
-  const codeMatch = text.match(/code[:\s]+[`"'*]*([A-Z0-9]{6,12})[`"'*]*/i)
-    || text.match(/\b([A-Z][A-Z0-9]{5,11})\b/);
+  const urlMatch = text.match(/https:\/\/login\.microsoft\.com\/device/i)
+    || text.match(/https:\/\/microsoft\.com\/devicelogin/i)
+    || text.match(/https:\/\/[^\s"*\n]+device[^\s"*\n]*/i);
+  const codeMatch = text.match(/\*\*([A-Z0-9]{6,12})\*\*/i)
+    || text.match(/code[:\s]*\*?\*?([A-Z0-9]{6,12})\*?\*?/i);
 
-  const verificationUrl = urlMatch ? urlMatch[0] : 'https://microsoft.com/devicelogin';
+  const verificationUrl = urlMatch ? urlMatch[0] : 'https://login.microsoft.com/device';
   const deviceCode = codeMatch ? codeMatch[1] : 'CHECK TERMINAL';
 
   // Open the verification URL in system browser
