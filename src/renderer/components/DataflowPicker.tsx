@@ -1,5 +1,5 @@
-import { Dropdown, Option, Label, Button } from '@fluentui/react-components';
-import { AddRegular } from '@fluentui/react-icons';
+import { useState, useMemo } from 'react';
+import { Combobox, Option, Label } from '@fluentui/react-components';
 import type { FabricDataflow } from '../types/api';
 
 interface Props {
@@ -10,32 +10,54 @@ interface Props {
 }
 
 export function DataflowPicker({ dataflows, value, onChange, onCreateNew }: Props) {
+  const [query, setQuery] = useState('');
+
+  const sorted = useMemo(
+    () => [...dataflows].sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    [dataflows]
+  );
+
+  const filtered = useMemo(
+    () =>
+      query
+        ? sorted.filter((d) => d.displayName.toLowerCase().includes(query.toLowerCase()))
+        : sorted,
+    [sorted, query]
+  );
+
+  const selectedName = dataflows.find((d) => d.id === value)?.displayName ?? '';
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
       <Label size="small">Dataflow</Label>
-      <Dropdown
-        placeholder="Select dataflow…"
+      <Combobox
+        placeholder="Search dataflows…"
         size="small"
-        value={dataflows.find((d) => d.id === value)?.displayName ?? ''}
+        value={query || selectedName}
         selectedOptions={value ? [value] : []}
+        onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
         onOptionSelect={(_, data) => {
           if (data.optionValue === '__create__') {
             onCreateNew();
+            setQuery('');
           } else if (data.optionValue) {
             onChange(data.optionValue);
+            setQuery('');
           }
         }}
-        style={{ minWidth: 180 }}
+        onBlur={() => setQuery('')}
+        style={{ minWidth: 220 }}
+        freeform
       >
-        {dataflows.map((df) => (
-          <Option key={df.id} value={df.id}>
+        <Option key="__create__" value="__create__" text="Create New Scratch">
+          ➕ Create New Scratch
+        </Option>
+        {filtered.map((df) => (
+          <Option key={df.id} value={df.id} text={df.displayName}>
             {df.displayName}
           </Option>
         ))}
-        <Option key="__create__" value="__create__">
-          ➕ Create New Scratch
-        </Option>
-      </Dropdown>
+      </Combobox>
     </div>
   );
 }
