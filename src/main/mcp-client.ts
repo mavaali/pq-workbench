@@ -6,6 +6,8 @@ const MCP_ARGS = process.env.PQ_MCP_ARGS?.split(' ') || [
   'run',
   '--project',
   '/Users/mihirwagle/projects/DataFactory.MCP-public/DataFactory.MCP',
+  '--',
+  '--device-code-auth',
 ];
 
 const DEFAULT_TIMEOUT_MS = 30_000;
