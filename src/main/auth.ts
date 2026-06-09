@@ -11,7 +11,7 @@ export interface AuthStatus {
 
 export async function signIn(): Promise<AuthStatus> {
   // Start device code flow
-  const result = await mcpClient.callTool('StartDeviceCodeAuthAsync', {}, 30_000);
+  const result = await mcpClient.callTool('start_device_code_auth', {}, 30_000);
   const text = McpClient.parseText(result);
 
   // Extract device code and URL from response
@@ -30,7 +30,7 @@ export async function signIn(): Promise<AuthStatus> {
   for (let i = 0; i < 24; i++) {
     await new Promise(r => setTimeout(r, 5000));
     try {
-      const statusResult = await mcpClient.callTool('CheckDeviceAuthStatusAsync', {}, 10_000);
+      const statusResult = await mcpClient.callTool('check_device_auth_status', {}, 10_000);
       const statusText = McpClient.parseText(statusResult);
       const lower = statusText.toLowerCase();
 
