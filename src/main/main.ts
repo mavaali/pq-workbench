@@ -1,0 +1,47 @@
+import { app, BrowserWindow } from 'electron';
+import * as path from 'path';
+import { registerIpcHandlers } from './ipc';
+
+const isDev = !app.isPackaged;
+
+function createWindow(): void {
+  const preloadPath = path.join(__dirname, '..', 'main', 'preload', 'preload.js');
+
+  const win = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    title: 'PQ Workbench',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      devTools: isDev,
+      preload: preloadPath,
+    },
+  });
+
+  if (isDev) {
+    win.loadURL('http://localhost:9000');
+    win.webContents.openDevTools();
+  } else {
+    win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  }
+}
+
+app.whenReady().then(() => {
+  registerIpcHandlers();
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});

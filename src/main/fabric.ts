@@ -1,0 +1,116 @@
+import { getToken } from './auth';
+
+const BASE_URL = 'https://api.fabric.microsoft.com/v1';
+const EVALUATE_ENDPOINT = '/query/evaluate'; // stub — confirm with Fabric API docs
+
+export interface FabricWorkspace {
+  id: string;
+  displayName: string;
+  description?: string;
+  capacityId?: string;
+}
+
+export interface FabricDataflow {
+  id: string;
+  displayName: string;
+  description?: string;
+}
+
+export interface ColumnSchema {
+  name: string;
+  type: string;
+  nullable: boolean;
+}
+
+export interface QueryResult {
+  columns: ColumnSchema[];
+  rows: Record<string, unknown>[];
+  rowCount: number;
+  executionTimeMs: number;
+}
+
+export interface FabricError {
+  code: string;
+  message: string;
+  statusCode?: number;
+}
+
+function isFabricError(e: unknown): e is FabricError {
+  return typeof e === 'object' && e !== null && 'code' in e && 'message' in e;
+}
+
+async function fabricFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = await getToken();
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  if (!res.ok) {
+    let body: unknown;
+    try {
+      body = await res.json();
+    } catch {
+      body = await res.text();
+    }
+    const err: FabricError = {
+      code: `HTTP_${res.status}`,
+      message: typeof body === 'string' ? body : JSON.stringify(body),
+      statusCode: res.status,
+    };
+    throw err;
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function listWorkspaces(): Promise<FabricWorkspace[]> {
+  const data = await fabricFetch<{ value: FabricWorkspace[] }>('/workspaces');
+  return data.value;
+}
+
+export async function listDataflows(workspaceId: string): Promise<FabricDataflow[]> {
+  const data = await fabricFetch<{ value: FabricDataflow[] }>(
+    `/workspaces/${encodeURIComponent(workspaceId)}/items?type=Dataflow`
+  );
+  return data.value;
+}
+
+export async function createDataflow(
+  workspaceId: string,
+  name: string
+): Promise<FabricDataflow> {
+  return fabricFetch<FabricDataflow>(
+    `/workspaces/${encodeURIComponent(workspaceId)}/dataflows`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ displayName: name }),
+    }
+  );
+}
+
+export async function evaluateQuery(
+  workspaceId: string,
+  dataflowId: string,
+  expression: string,
+  topN = 100
+): Promise<QueryResult> {
+  const start = Date.now();
+  // Stub endpoint — real path TBD from Fabric API docs
+  const data = await fabricFetch<{ columns: ColumnSchema[]; rows: Record<string, unknown>[] }>(
+    `/workspaces/${encodeURIComponent(workspaceId)}/dataflows/${encodeURIComponent(dataflowId)}${EVALUATE_ENDPOINT}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ expression, topN }),
+    }
+  );
+  return {
+    columns: data.columns,
+    rows: data.rows,
+    rowCount: data.rows.length,
+    executionTimeMs: Date.now() - start,
+  };
+}

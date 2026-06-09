@@ -1,0 +1,41 @@
+{
+  "name": "pq-workbench",
+  "version": "0.1.0",
+  "description": "Desktop app for executing Power Query (M code) against Microsoft Fabric workspaces",
+  "main": "dist/main/main.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
+    "dev:renderer": "webpack serve --config webpack.renderer.config.js --mode development",
+    "dev:main": "wait-on http://localhost:9000 && tsc -p tsconfig.main.json && electron dist/main/main.js",
+    "build": "npm run build:main && npm run build:renderer",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "webpack --config webpack.renderer.config.js --mode production",
+    "start": "electron dist/main/main.js",
+    "typecheck": "tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.renderer.json"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^2.16.2",
+    "@fluentui/react-components": "^9.56.0",
+    "@fluentui/react-icons": "^2.0.268",
+    "@monaco-editor/react": "^4.7.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "concurrently": "^9.1.2",
+    "copy-webpack-plugin": "^12.0.2",
+    "css-loader": "^7.1.2",
+    "electron": "^33.3.1",
+    "html-webpack-plugin": "^5.6.3",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.7.3",
+    "wait-on": "^8.0.3",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.0"
+  }
+}
