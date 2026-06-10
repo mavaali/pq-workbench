@@ -188,8 +188,8 @@ export function App() {
         <DangerousFunctionBanner mCode={mCode} />
 
         {/* Main content */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: 'column' }}>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ flex: 1, minHeight: 200, overflow: 'hidden' }}>
             <QueryEditor
               value={mCode}
               onChange={setMCode}
@@ -203,7 +203,7 @@ export function App() {
         {/* Bottom panel */}
         <div
           style={{
-            height: 280,
+            height: 220,
             borderTop: `1px solid ${dark ? '#333' : '#e0e0e0'}`,
             display: 'flex',
             flexDirection: 'column',
