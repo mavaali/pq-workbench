@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
     onDeviceCode: (callback: (data: { userCode: string; verificationUri: string; message: string }) => void) => {
       ipcRenderer.on('auth:device-code', (_event, data) => callback(data));
     },
+    openCliAuth: () => invoke<void>(IPC_CHANNELS.OPEN_CLI_AUTH),
   },
   fabric: {
     listWorkspaces: () => invoke(IPC_CHANNELS.FABRIC_LIST_WORKSPACES),

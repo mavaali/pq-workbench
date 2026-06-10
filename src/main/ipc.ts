@@ -1,4 +1,5 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { execFile } from 'child_process';
 import { IPC_CHANNELS } from '../shared/channels';
 import * as auth from './auth';
 import * as fabric from './fabric';
@@ -20,6 +21,18 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.AUTH_POLL, async () => {
     return auth.pollAuthCompletion();
+  });
+
+  // Open terminal for CLI auth (gh auth login)
+  ipcMain.handle(IPC_CHANNELS.OPEN_CLI_AUTH, async () => {
+    const cmd = 'gh auth login --scopes copilot';
+    if (process.platform === 'darwin') {
+      execFile('osascript', ['-e', `tell application "Terminal" to do script "${cmd}"`]);
+    } else if (process.platform === 'win32') {
+      execFile('cmd.exe', ['/c', 'start', 'cmd', '/k', cmd]);
+    } else {
+      execFile('x-terminal-emulator', ['-e', cmd]);
+    }
   });
 
   // Fabric

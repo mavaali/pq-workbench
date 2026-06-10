@@ -70,13 +70,29 @@ export function App() {
     checkLlmAvailability().then(setLlmAvailability);
   }, [checkLlmAvailability]);
 
-  const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
-  const [selectedDataflow, setSelectedDataflow] = useState<string>('');
+  const [selectedWorkspace, setSelectedWorkspace] = useState<string>(
+    () => localStorage.getItem('pqwb:lastWorkspace') || ''
+  );
+  const [selectedDataflow, setSelectedDataflow] = useState<string>(
+    () => localStorage.getItem('pqwb:lastDataflow') || ''
+  );
+
+  // Restore last-used workspace on auth
+  useEffect(() => {
+    if (authStatus.signedIn && selectedWorkspace) {
+      fetchDataflows(selectedWorkspace);
+      if (selectedDataflow) {
+        fetchQueries(selectedWorkspace, selectedDataflow);
+      }
+    }
+  }, [authStatus.signedIn]);
 
   const handleWorkspaceChange = useCallback(
     (wsId: string) => {
       setSelectedWorkspace(wsId);
       setSelectedDataflow('');
+      localStorage.setItem('pqwb:lastWorkspace', wsId);
+      localStorage.removeItem('pqwb:lastDataflow');
       if (wsId) fetchDataflows(wsId);
     },
     [fetchDataflows]
@@ -85,6 +101,7 @@ export function App() {
   const handleDataflowChange = useCallback(
     (dfId: string) => {
       setSelectedDataflow(dfId);
+      localStorage.setItem('pqwb:lastDataflow', dfId);
       if (dfId && selectedWorkspace) {
         fetchQueries(selectedWorkspace, dfId);
       }

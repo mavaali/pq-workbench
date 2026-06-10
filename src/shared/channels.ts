@@ -3,6 +3,7 @@ export const IPC_CHANNELS = {
   AUTH_SIGN_OUT: 'auth:sign-out',
   AUTH_STATUS: 'auth:status',
   AUTH_POLL: 'auth:poll',
+  OPEN_CLI_AUTH: 'open-cli-auth',
   FABRIC_LIST_WORKSPACES: 'fabric:list-workspaces',
   FABRIC_LIST_DATAFLOWS: 'fabric:list-dataflows',
   FABRIC_CREATE_DATAFLOW: 'fabric:create-dataflow',

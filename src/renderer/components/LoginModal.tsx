@@ -296,8 +296,16 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
                 </div>
               </div>
 
-              <Button appearance="subtle" size="small" disabled style={{ alignSelf: 'flex-start' }}>
-                Skip
+              <Button
+                appearance="subtle"
+                size="small"
+                onClick={() => {
+                  const api = (window as any).pqWorkbench;
+                  if (api?.auth?.openCliAuth) api.auth.openCliAuth();
+                }}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                Set Up GitHub Auth →
               </Button>
 
               <span
