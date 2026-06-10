@@ -1,4 +1,5 @@
 import { getToken } from './auth';
+import { tableFromIPC } from 'apache-arrow';
 
 const BASE_URL = 'https://api.fabric.microsoft.com/v1';
 
@@ -115,14 +116,9 @@ export async function evaluateQuery(
     return parseJsonResult(data, topN, Date.now() - start);
   }
 
-  // Binary (Arrow) response — return raw indicator for now
+  // Arrow binary response — parse with apache-arrow
   const bytes = await res.arrayBuffer();
-  return {
-    columns: [{ name: 'Result', type: 'binary', nullable: false }],
-    rows: [{ Result: `(${bytes.byteLength} bytes Arrow data)` }],
-    rowCount: 1,
-    executionTimeMs: Date.now() - start,
-  };
+  return parseArrowResult(new Uint8Array(bytes), topN, Date.now() - start);
 }
 
 /** Wrap a raw M expression as a section document if it isn't one already. */
@@ -132,6 +128,33 @@ function wrapAsSection(expression: string, queryName: string): string {
   if (trimmed.toLowerCase().startsWith('section ')) return trimmed;
   // Wrap it
   return `section Section1; shared ${queryName} = ${trimmed};`;
+}
+
+function parseArrowResult(
+  bytes: Uint8Array,
+  topN: number,
+  elapsedMs: number
+): QueryResult {
+  const table = tableFromIPC(bytes);
+
+  const columns: ColumnSchema[] = table.schema.fields.map((f) => ({
+    name: f.name,
+    type: String(f.type),
+    nullable: f.nullable,
+  }));
+
+  const rows: Record<string, unknown>[] = [];
+  const limit = Math.min(table.numRows, topN);
+  for (let i = 0; i < limit; i++) {
+    const row: Record<string, unknown> = {};
+    for (const col of columns) {
+      const vec = table.getChild(col.name);
+      row[col.name] = vec ? vec.get(i) : null;
+    }
+    rows.push(row);
+  }
+
+  return { columns, rows, rowCount: table.numRows, executionTimeMs: elapsedMs };
 }
 
 function parseJsonResult(
