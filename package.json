@@ -4,6 +4,8 @@
   "description": "Desktop app for executing Power Query (M code) against Microsoft Fabric workspaces",
   "main": "dist/main/main.js",
   "license": "MIT",
+  "author": "Mihir Wagle",
+  "repository": "https://github.com/mavaali/pq-workbench",
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
     "dev:renderer": "webpack serve --config webpack.renderer.config.js --mode development",
@@ -12,7 +14,39 @@
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "webpack --config webpack.renderer.config.js --mode production",
     "start": "electron dist/main/main.js",
-    "typecheck": "tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.renderer.json"
+    "typecheck": "tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.renderer.json",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.mavaali.pq-workbench",
+    "productName": "PQ Workbench",
+    "files": [
+      "dist/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": ["dmg", "zip"],
+      "icon": "assets/icon.icns"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Development"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "@azure/msal-node": "^5.2.3",
@@ -31,6 +65,7 @@
     "copy-webpack-plugin": "^12.0.2",
     "css-loader": "^7.1.2",
     "electron": "^33.3.1",
+    "electron-builder": "^26.15.2",
     "html-webpack-plugin": "^5.6.3",
     "style-loader": "^4.0.0",
     "ts-loader": "^9.5.1",

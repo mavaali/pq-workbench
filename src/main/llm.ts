@@ -19,8 +19,10 @@ export interface LlmAvailability {
 
 async function which(cmd: string): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync('/usr/bin/which', [cmd], { timeout: 5_000 });
-    return stdout.trim() || null;
+    const isWin = process.platform === 'win32';
+    const bin = isWin ? 'where.exe' : '/usr/bin/which';
+    const { stdout } = await execFileAsync(bin, [cmd], { timeout: 5_000 });
+    return stdout.trim().split('\n')[0] || null;
   } catch {
     return null;
   }
