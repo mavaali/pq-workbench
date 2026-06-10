@@ -7,10 +7,14 @@ const isDev = !app.isPackaged;
 function createWindow(): void {
   const preloadPath = path.join(__dirname, '..', 'preload', 'preload.js');
 
+  const iconExt = process.platform === 'win32' ? 'ico' : process.platform === 'darwin' ? 'icns' : 'png';
+  const iconPath = path.join(__dirname, '..', '..', 'assets', `icon.${iconExt}`);
+
   const win = new BrowserWindow({
     width: 1400,
     height: 900,
     title: 'PQ Workbench',
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
