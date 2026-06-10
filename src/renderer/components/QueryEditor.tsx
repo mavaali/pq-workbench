@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { Button, Toolbar, ToolbarButton } from '@fluentui/react-components';
 import { PlayRegular } from '@fluentui/react-icons';
@@ -13,6 +13,14 @@ interface Props {
 
 export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+
+  // Sync external value changes into Monaco
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (editor && editor.getValue() !== value) {
+      editor.setValue(value);
+    }
+  }, [value]);
 
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;

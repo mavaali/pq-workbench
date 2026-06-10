@@ -97,7 +97,12 @@ export function App() {
   const handleGenerate = useCallback(
     async (prompt: string, provider: 'gh-copilot' | 'claude', context?: string[]) => {
       const result = await generateMCode(provider, prompt, context);
-      if (result) setMCode(result.mCode);
+      console.log('[App] LLM result:', result);
+      if (result?.mCode) {
+        setMCode(result.mCode);
+      } else {
+        setError('AI Assist returned no M code. Check the terminal for details.');
+      }
     },
     [generateMCode]
   );

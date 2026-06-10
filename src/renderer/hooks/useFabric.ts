@@ -175,7 +175,9 @@ export function useFabric() {
       setError(null);
       try {
         if (api) {
-          return await api.llm.generateMCode(provider, prompt, context);
+          const result = await api.llm.generateMCode(provider, prompt, context);
+          console.log('[useFabric] LLM result:', JSON.stringify(result));
+          return result as LlmResult;
         }
         return {
           mCode: `let\n    Source = Sql.Database("server", "db"),\n    Result = Table.SelectRows(Source, each [Status] = "Active")\nin\n    Result`,
