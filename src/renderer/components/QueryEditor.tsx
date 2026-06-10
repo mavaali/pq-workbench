@@ -13,17 +13,23 @@ interface Props {
 
 export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const isSettingValue = useRef(false);
 
   // Sync external value changes into Monaco
   useEffect(() => {
     const editor = editorRef.current;
-    if (editor && editor.getValue() !== value) {
+    if (!editor) return;
+    if (editor.getValue() !== value) {
+      isSettingValue.current = true;
       editor.setValue(value);
+      isSettingValue.current = false;
     }
   }, [value]);
 
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+    // Set initial value explicitly
+    editor.setValue(value);
 
     // Register M language (basic tokenization)
     monaco.languages.register({ id: 'powerquery' });
@@ -86,7 +92,9 @@ export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
           language="powerquery"
           theme={dark ? 'vs-dark' : 'light'}
           value={value}
-          onChange={(v) => onChange(v ?? '')}
+          onChange={(v) => {
+            if (!isSettingValue.current) onChange(v ?? '');
+          }}
           onMount={handleMount}
           options={{
             minimap: { enabled: false },
