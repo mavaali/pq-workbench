@@ -48,7 +48,7 @@ export async function generateMCode(
     const copilotPath = await which('copilot');
     if (!copilotPath) throw new Error('GitHub Copilot CLI not found. Install from: https://gh.io/copilot-cli');
     bin = copilotPath;
-    args = ['-p', fullPrompt, '--no-confirmations'];
+    args = ['-p', fullPrompt];
   } else {
     const claudePath = await which('claude');
     if (!claudePath) throw new Error('Claude CLI not found. Install from: https://docs.anthropic.com/en/docs/claude-cli');
@@ -78,11 +78,13 @@ function buildPrompt(prompt: string, context?: string[]): string {
 }
 
 function extractMCode(raw: string): string {
+  // Strip Copilot CLI footer (Changes, AI Credits, Tokens lines)
+  const cleaned = raw.replace(/\n\s*Changes\s+\+.*$/s, '').replace(/\n\s*AI Credits.*$/s, '').trim();
   // Try to extract from markdown code block
-  const match = raw.match(/```(?:m|powerquery|pq)?\s*\n([\s\S]*?)```/);
+  const match = cleaned.match(/```(?:m|powerquery|pq)?\s*\n([\s\S]*?)```/);
   if (match) return match[1].trim();
   // Try to find a let...in block
-  const letIn = raw.match(/(let[\s\S]*?in[\s\S]*?)(?:$|```)/i);
+  const letIn = cleaned.match(/(let[\s\S]*?in[\s\S]*?)(?:$|```)/i);
   if (letIn) return letIn[1].trim();
-  return raw.trim();
+  return cleaned.trim();
 }
