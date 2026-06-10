@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   FluentProvider,
   webLightTheme,
@@ -20,6 +20,7 @@ import {
   WeatherSunny24Regular,
 } from '@fluentui/react-icons';
 import { AuthButton } from './components/AuthButton';
+import { LoginModal } from './components/LoginModal';
 import { WorkspacePicker } from './components/WorkspacePicker';
 import { DataflowPicker } from './components/DataflowPicker';
 import { QueryEditor } from './components/QueryEditor';
@@ -29,6 +30,7 @@ import { SchemaPanel } from './components/SchemaPanel';
 import { QueryInfoPanel } from './components/QueryInfoPanel';
 import { DangerousFunctionBanner } from './components/DangerousFunctionBanner';
 import { useFabric } from './hooks/useFabric';
+import type { LlmAvailability } from './types/api';
 
 export function App() {
   const [dark, setDark] = useState(false);
@@ -37,6 +39,7 @@ export function App() {
     `let\n    Source = Table.FromRecords({\n        [ID=1, Name="Hello"],\n        [ID=2, Name="World"]\n    })\nin\n    Source`
   );
   const [showNL, setShowNL] = useState(false);
+  const [llmAvailability, setLlmAvailability] = useState<LlmAvailability | null>(null);
 
   const fabric = useFabric();
   const {
@@ -56,6 +59,11 @@ export function App() {
     checkLlmAvailability,
     setError,
   } = fabric;
+
+  // Check LLM availability on mount for the login modal
+  useEffect(() => {
+    checkLlmAvailability().then(setLlmAvailability);
+  }, [checkLlmAvailability]);
 
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
   const [selectedDataflow, setSelectedDataflow] = useState<string>('');
@@ -88,6 +96,13 @@ export function App() {
 
   return (
     <FluentProvider theme={dark ? webDarkTheme : webLightTheme} style={{ height: '100%' }}>
+      {/* Login modal — blocks interaction until Fabric auth succeeds */}
+      <LoginModal
+        authStatus={authStatus}
+        onSignIn={signIn}
+        llmAvailability={llmAvailability}
+      />
+
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         {/* Top Bar */}
         <div
