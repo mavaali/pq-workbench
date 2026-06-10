@@ -65,22 +65,23 @@ export function useFabric() {
     })();
   }, []);
 
+  // Listen for device code events from main process
+  useEffect(() => {
+    if (api?.auth?.onDeviceCode) {
+      api.auth.onDeviceCode((data: { userCode: string; verificationUri: string; message: string }) => {
+        setError(`Enter code: ${data.userCode} at ${data.verificationUri}`);
+      });
+    }
+  }, []);
+
   const signIn = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       if (api) {
-        // Phase 1: Get device code (opens browser)
-        const codeStatus = await api.auth.signIn();
-        setAuthStatus(codeStatus);
-        
-        if (codeStatus.deviceCode) {
-          setError(`Enter code: ${codeStatus.deviceCode} at microsoft.com/devicelogin`);
-        }
-
-        // Phase 2: Poll for completion
-        const finalStatus = await api.auth.pollCompletion();
-        setAuthStatus(finalStatus);
+        // This blocks until device code auth completes
+        const status = await api.auth.signIn();
+        setAuthStatus(status);
         setError(null);
       } else {
         setAuthStatus({ signedIn: true, userName: 'Dev User', tenantId: 'dev-tenant' });

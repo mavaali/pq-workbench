@@ -14,11 +14,8 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
     signOut: () => invoke<void>(IPC_CHANNELS.AUTH_SIGN_OUT),
     getStatus: () => invoke(IPC_CHANNELS.AUTH_STATUS),
     pollCompletion: () => invoke(IPC_CHANNELS.AUTH_POLL),
-  },
-  mcp: {
-    getStatus: () => invoke<{ connected: boolean }>(IPC_CHANNELS.MCP_STATUS),
-    onStatus: (callback: (status: { connected: boolean; reason?: string }) => void) => {
-      ipcRenderer.on('mcp:status', (_event, status) => callback(status));
+    onDeviceCode: (callback: (data: { userCode: string; verificationUri: string; message: string }) => void) => {
+      ipcRenderer.on('auth:device-code', (_event, data) => callback(data));
     },
   },
   fabric: {

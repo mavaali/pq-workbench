@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.renderer.json"
   },
   "dependencies": {
+    "@azure/msal-node": "^5.2.3",
     "@fluentui/react-components": "^9.56.0",
     "@fluentui/react-icons": "^2.0.268",
     "@monaco-editor/react": "^4.7.0",

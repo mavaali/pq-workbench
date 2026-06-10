@@ -1,5 +1,27 @@
-import { mcpClient, McpClient } from './mcp-client';
-import { shell } from 'electron';
+import {
+  PublicClientApplication,
+  Configuration,
+  AccountInfo,
+  DeviceCodeRequest,
+} from '@azure/msal-node';
+import { BrowserWindow } from 'electron';
+
+// Power BI Desktop's well-known public client ID — preauthorized in all MSFT tenants
+const PBI_CLIENT_ID = '7f67af8a-fedc-4b08-8b4e-37c4d127b6cf';
+const AUTHORITY = 'https://login.microsoftonline.com/organizations';
+const SCOPES = ['https://analysis.windows.net/powerbi/api/.default'];
+
+const MSAL_CONFIG: Configuration = {
+  auth: { clientId: PBI_CLIENT_ID, authority: AUTHORITY },
+};
+
+let pca: PublicClientApplication | null = null;
+let cachedAccount: AccountInfo | null = null;
+
+function getClient(): PublicClientApplication {
+  if (!pca) pca = new PublicClientApplication(MSAL_CONFIG);
+  return pca;
+}
 
 export interface AuthStatus {
   signedIn: boolean;
@@ -10,89 +32,85 @@ export interface AuthStatus {
 }
 
 export async function signIn(): Promise<AuthStatus> {
-  // Start device code flow
-  const result = await mcpClient.callTool('start_device_code_auth', {}, 30_000);
-  const text = McpClient.parseText(result);
+  const client = getClient();
 
-  console.log('[Auth] Device code response:', text);
+  const deviceCodeRequest: DeviceCodeRequest = {
+    scopes: SCOPES,
+    deviceCodeCallback: (response) => {
+      console.log(`[Auth] Device code: ${response.userCode}`);
+      console.log(`[Auth] URL: ${response.verificationUri}`);
+      // Send code to all renderer windows
+      for (const win of BrowserWindow.getAllWindows()) {
+        win.webContents.send('auth:device-code', {
+          userCode: response.userCode,
+          verificationUri: response.verificationUri,
+          message: response.message,
+        });
+      }
+    },
+  };
 
-  // Extract device code and URL from response
-  const urlMatch = text.match(/https:\/\/login\.microsoft\.com\/device/i)
-    || text.match(/https:\/\/microsoft\.com\/devicelogin/i)
-    || text.match(/https:\/\/[^\s"*\n]+device[^\s"*\n]*/i);
-  const codeMatch = text.match(/\*\*([A-Z0-9]{6,12})\*\*/i)
-    || text.match(/code[:\s]*\*?\*?([A-Z0-9]{6,12})\*?\*?/i);
+  const result = await client.acquireTokenByDeviceCode(deviceCodeRequest);
+  cachedAccount = result?.account ?? null;
 
-  const verificationUrl = urlMatch ? urlMatch[0] : 'https://login.microsoft.com/device';
-  const deviceCode = codeMatch ? codeMatch[1] : 'CHECK TERMINAL';
-
-  // Open the verification URL in system browser
-  await shell.openExternal(verificationUrl);
-
-  // Return immediately with the device code so the UI can show it
-  // The caller will need to poll for completion
   return {
-    signedIn: false,
-    deviceCode,
-    verificationUrl,
-    userName: `Enter code: ${deviceCode}`,
+    signedIn: true,
+    userName: cachedAccount?.name ?? cachedAccount?.username,
+    tenantId: cachedAccount?.tenantId,
   };
 }
 
-export async function pollAuthCompletion(): Promise<AuthStatus> {
-  for (let i = 0; i < 24; i++) {
-    await new Promise(r => setTimeout(r, 5000));
-    try {
-      const statusResult = await mcpClient.callTool('check_device_auth_status', {}, 10_000);
-      const statusText = McpClient.parseText(statusResult);
-      const lower = statusText.toLowerCase();
-
-      if (lower.includes('authenticated') || lower.includes('success') || lower.includes('signed in')) {
-        return getStatus();
-      }
-      if (lower.includes('expired') || lower.includes('denied') || lower.includes('failed')) {
-        throw new Error(`Authentication failed: ${statusText}`);
-      }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes('expired') || msg.includes('denied')) throw e;
+export async function signOut(): Promise<void> {
+  const client = getClient();
+  if (cachedAccount) {
+    const cache = client.getTokenCache();
+    const accounts = await cache.getAllAccounts();
+    for (const acct of accounts) {
+      await cache.removeAccount(acct);
     }
   }
-  throw new Error('Authentication timed out after 2 minutes');
-}
-
-export async function signOut(): Promise<void> {
-  try {
-    await mcpClient.callTool('sign_out', {});
-  } catch {
-    // sign_out may not be implemented; ignore
-  }
+  cachedAccount = null;
 }
 
 export async function getStatus(): Promise<AuthStatus> {
-  try {
-    const result = await mcpClient.callTool('get_authentication_status', {});
-    return parseAuthStatus(result);
-  } catch {
+  if (!cachedAccount) {
+    // Check if we have a cached account from a previous token acquisition
+    const client = getClient();
+    const accounts = await client.getTokenCache().getAllAccounts();
+    if (accounts.length > 0) {
+      cachedAccount = accounts[0];
+      return {
+        signedIn: true,
+        userName: cachedAccount.name ?? cachedAccount.username,
+        tenantId: cachedAccount.tenantId,
+      };
+    }
     return { signedIn: false };
+  }
+  return {
+    signedIn: true,
+    userName: cachedAccount.name ?? cachedAccount.username,
+    tenantId: cachedAccount.tenantId,
+  };
+}
+
+export async function getToken(): Promise<string> {
+  const client = getClient();
+  if (!cachedAccount) throw new Error('Not signed in');
+
+  try {
+    const result = await client.acquireTokenSilent({
+      scopes: SCOPES,
+      account: cachedAccount,
+    });
+    return result.accessToken;
+  } catch {
+    // Silent failed — need re-auth
+    throw new Error('Token expired. Please sign in again.');
   }
 }
 
-function parseAuthStatus(result: import('./mcp-client').McpToolResult): AuthStatus {
-  const text = McpClient.parseText(result);
-
-  // Try JSON first
-  try {
-    const data = JSON.parse(text) as Record<string, unknown>;
-    return {
-      signedIn: Boolean(data.authenticated ?? data.signedIn ?? data.isAuthenticated ?? true),
-      userName: (data.userName ?? data.username ?? data.user ?? data.displayName) as string | undefined,
-      tenantId: (data.tenantId ?? data.tenant) as string | undefined,
-    };
-  } catch { /* not JSON — fall through */ }
-
-  // Heuristic: if the text contains "authenticated" or similar, treat as signed in
-  const lower = text.toLowerCase();
-  const signedIn = lower.includes('authenticated') || lower.includes('signed in') || lower.includes('success');
-  return { signedIn, userName: signedIn ? text.split('\n')[0].slice(0, 100) : undefined };
+export async function pollAuthCompletion(): Promise<AuthStatus> {
+  // Not needed anymore — signIn() blocks until device code is completed
+  return getStatus();
 }
