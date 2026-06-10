@@ -102,7 +102,7 @@ export async function evaluateQuery(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        queryName: effectiveName,
+        QueryName: effectiveName,
         customMashupDocument: effectiveDoc,
       }),
     }
