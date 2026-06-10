@@ -4,7 +4,10 @@
   "description": "Desktop app for executing Power Query (M code) against Microsoft Fabric workspaces",
   "main": "dist/main/main.js",
   "license": "MIT",
-  "author": "Mihir Wagle",
+  "author": {
+    "name": "Mihir Wagle",
+    "email": "mihir@mavaali.com"
+  },
   "repository": "https://github.com/mavaali/pq-workbench",
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",

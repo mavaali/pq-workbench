@@ -40,7 +40,7 @@ jobs:
         run: npm run build
 
       - name: Package (${{ matrix.platform }})
-        run: npm run dist:${{ matrix.platform }}
+        run: npx electron-builder --${{ matrix.platform }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
