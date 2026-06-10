@@ -75,7 +75,7 @@ export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar size="small" style={{ padding: '4px 8px', flexShrink: 0 }}>
         <ToolbarButton
           icon={<PlayRegular />}
@@ -86,7 +86,7 @@ export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
           Run (Ctrl+Enter)
         </ToolbarButton>
       </Toolbar>
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minHeight: 0 }}>
         <Editor
           height="100%"
           language="powerquery"
