@@ -92,6 +92,13 @@ export async function evaluateQuery(
   const effectiveName = queryName || 'pqworkbench_query';
   const effectiveDoc = originalDocument || wrapAsSection(expression, effectiveName);
 
+  console.log('[Fabric] executeQuery:', {
+    queryName: effectiveName,
+    docLength: effectiveDoc.length,
+    docPreview: effectiveDoc.substring(0, 200),
+    hasOriginalDoc: !!originalDocument,
+  });
+
   const token = await getToken();
   const res = await fetch(
     `${BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/dataflows/${encodeURIComponent(dataflowId)}/executeQuery`,
@@ -112,6 +119,14 @@ export async function evaluateQuery(
     let body: unknown;
     try { body = await res.json(); } catch { body = await res.text(); }
     const detail = typeof body === 'string' ? body : JSON.stringify(body);
+    if (res.status === 500) {
+      throw new Error(
+        `Query execution failed on the Fabric server. This usually means the query references ` +
+        `a data source whose credentials aren't available via the API. ` +
+        `Try a self-contained M expression first (e.g. Table.FromRecords). ` +
+        `Server response: ${detail}`
+      );
+    }
     throw new Error(`Execute query failed (${res.status}): ${detail}`);
   }
 
@@ -148,11 +163,16 @@ interface DefinitionResponse {
 
 /**
  * Parse an M section document and extract all `shared <name> = <expression>;` blocks.
+ * The mashup.pq may contain metadata annotations before the section keyword.
  */
 export function parseSectionDocument(source: string): DataflowQuery[] {
   const queries: DataflowQuery[] = [];
-  // Strip the section header line (e.g. "section Section1;")
-  const body = source.replace(/^\s*section\s+[^;]*;\s*/i, '');
+
+  // Find the section document — strip metadata annotations before it
+  const sectionMatch = source.match(/section\s+\w+\s*;/i);
+  if (!sectionMatch) return queries;
+
+  const body = source.slice(sectionMatch.index! + sectionMatch[0].length);
 
   // Split on `shared <name> =` boundaries
   const pattern = /\bshared\s+([\w.#]+)\s*=/g;
