@@ -19,6 +19,8 @@ import {
   WeatherMoon24Regular,
   WeatherSunny24Regular,
 } from '@fluentui/react-icons';
+import { Allotment } from 'allotment';
+import 'allotment/dist/style.css';
 import { AuthButton } from './components/AuthButton';
 import { LoginModal } from './components/LoginModal';
 import { WorkspacePicker } from './components/WorkspacePicker';
@@ -187,45 +189,39 @@ export function App() {
         {/* Dangerous function warning */}
         <DangerousFunctionBanner mCode={mCode} />
 
-        {/* Main content */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ flex: 1, minHeight: 200, overflow: 'hidden' }}>
-            <QueryEditor
-              value={mCode}
-              onChange={setMCode}
-              onRun={handleRun}
-              loading={loading}
-              dark={dark}
-            />
-          </div>
-        </div>
-
-        {/* Bottom panel */}
-        <div
-          style={{
-            height: 220,
-            borderTop: `1px solid ${dark ? '#333' : '#e0e0e0'}`,
-            display: 'flex',
-            flexDirection: 'column',
-            flexShrink: 0,
-          }}
-        >
-          <TabList
-            selectedValue={selectedTab}
-            onTabSelect={(_, data) => setSelectedTab(data.value as string)}
-            size="small"
-            style={{ padding: '0 16px' }}
-          >
-            <Tab value="data">Data</Tab>
-            <Tab value="schema">Schema</Tab>
-            <Tab value="info">Query Info</Tab>
-          </TabList>
-          <div style={{ flex: 1, overflow: 'auto', padding: '8px 16px' }}>
-            {loading && <Spinner size="small" label="Executing…" />}
-            {!loading && selectedTab === 'data' && <ResultsPanel result={queryResult} />}
-            {!loading && selectedTab === 'schema' && <SchemaPanel result={queryResult} />}
-            {!loading && selectedTab === 'info' && <QueryInfoPanel result={queryResult} />}
-          </div>
+        {/* Main content — resizable split between editor and results */}
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <Allotment vertical defaultSizes={[300, 200]}>
+            <Allotment.Pane minSize={150}>
+              <QueryEditor
+                value={mCode}
+                onChange={setMCode}
+                onRun={handleRun}
+                loading={loading}
+                dark={dark}
+              />
+            </Allotment.Pane>
+            <Allotment.Pane minSize={100}>
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <TabList
+                  selectedValue={selectedTab}
+                  onTabSelect={(_, data) => setSelectedTab(data.value as string)}
+                  size="small"
+                  style={{ padding: '0 16px', flexShrink: 0 }}
+                >
+                  <Tab value="data">Data</Tab>
+                  <Tab value="schema">Schema</Tab>
+                  <Tab value="info">Query Info</Tab>
+                </TabList>
+                <div style={{ flex: 1, overflow: 'auto', padding: '8px 16px' }}>
+                  {loading && <Spinner size="small" label="Executing…" />}
+                  {!loading && selectedTab === 'data' && <ResultsPanel result={queryResult} />}
+                  {!loading && selectedTab === 'schema' && <SchemaPanel result={queryResult} />}
+                  {!loading && selectedTab === 'info' && <QueryInfoPanel result={queryResult} />}
+                </div>
+              </div>
+            </Allotment.Pane>
+          </Allotment>
         </div>
       </div>
     </FluentProvider>
