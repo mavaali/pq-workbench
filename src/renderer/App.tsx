@@ -166,6 +166,14 @@ export function App() {
           </MessageBar>
         )}
 
+        {/* AI Assist input — right below toolbar */}
+        {showNL && (
+          <NLInput
+            onGenerate={handleGenerate}
+            checkAvailability={checkLlmAvailability}
+          />
+        )}
+
         {/* Dangerous function warning */}
         <DangerousFunctionBanner mCode={mCode} />
 
@@ -180,12 +188,6 @@ export function App() {
               dark={dark}
             />
           </div>
-          {showNL && (
-            <NLInput
-              onGenerate={handleGenerate}
-              checkAvailability={checkLlmAvailability}
-            />
-          )}
         </div>
 
         {/* Bottom panel */}
