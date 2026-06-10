@@ -75,6 +75,19 @@ export function registerIpcHandlers(): void {
     }
   );
 
+  ipcMain.handle(
+    IPC_CHANNELS.FABRIC_GET_QUERIES,
+    async (_e: IpcMainInvokeEvent, workspaceId: string, dataflowId: string) => {
+      if (!workspaceId || typeof workspaceId !== 'string') {
+        throw new Error('workspaceId is required');
+      }
+      if (!dataflowId || typeof dataflowId !== 'string') {
+        throw new Error('dataflowId is required');
+      }
+      return fabric.getDataflowQueries(workspaceId, dataflowId);
+    }
+  );
+
   // LLM
   ipcMain.handle(
     IPC_CHANNELS.LLM_GENERATE,

@@ -121,6 +121,90 @@ export async function evaluateQuery(
   return parseArrowResult(new Uint8Array(bytes), topN, Date.now() - start);
 }
 
+// ── Dataflow query browser ──
+
+export interface DataflowQuery {
+  name: string;
+  expression: string;
+}
+
+interface DefinitionPart {
+  path: string;
+  payload: string;
+}
+
+interface DefinitionResponse {
+  definition: {
+    parts: DefinitionPart[];
+  };
+}
+
+/**
+ * Parse an M section document and extract all `shared <name> = <expression>;` blocks.
+ */
+export function parseSectionDocument(source: string): DataflowQuery[] {
+  const queries: DataflowQuery[] = [];
+  // Strip the section header line (e.g. "section Section1;")
+  const body = source.replace(/^\s*section\s+[^;]*;\s*/i, '');
+
+  // Split on `shared <name> =` boundaries
+  const pattern = /\bshared\s+([\w.#]+)\s*=/g;
+  const matches: { name: string; start: number; exprStart: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = pattern.exec(body)) !== null) {
+    matches.push({ name: m[1], start: m.index, exprStart: m.index + m[0].length });
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const exprStart = matches[i].exprStart;
+    const exprEnd = i + 1 < matches.length ? matches[i + 1].start : body.length;
+    let expression = body.slice(exprStart, exprEnd).trim();
+    // Strip trailing semicolon
+    expression = expression.replace(/;\s*$/, '').trim();
+    if (expression) {
+      queries.push({ name: matches[i].name, expression });
+    }
+  }
+
+  return queries;
+}
+
+export async function getDataflowQueries(
+  workspaceId: string,
+  dataflowId: string
+): Promise<DataflowQuery[]> {
+  try {
+    const token = await getToken();
+    const url = `${BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/items/${encodeURIComponent(dataflowId)}/getDefinition`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Length': '0',
+      },
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      console.warn('[Fabric] getDefinition returned', res.status, '— user likely lacks contributor access');
+      return [];
+    }
+    if (!res.ok) {
+      console.warn('[Fabric] getDefinition failed:', res.status);
+      return [];
+    }
+
+    const data = (await res.json()) as DefinitionResponse;
+    const mashupPart = data.definition?.parts?.find((p) => p.path === 'mashup.pq');
+    if (!mashupPart?.payload) return [];
+
+    const decoded = Buffer.from(mashupPart.payload, 'base64').toString('utf-8');
+    return parseSectionDocument(decoded);
+  } catch (e) {
+    console.error('[Fabric] getDataflowQueries error:', e);
+    return [];
+  }
+}
+
 /** Wrap a raw M expression as a section document if it isn't one already. */
 function wrapAsSection(expression: string, queryName: string): string {
   const trimmed = expression.trim();

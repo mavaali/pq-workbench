@@ -31,6 +31,7 @@ import { ResultsPanel } from './components/ResultsPanel';
 import { SchemaPanel } from './components/SchemaPanel';
 import { QueryInfoPanel } from './components/QueryInfoPanel';
 import { DangerousFunctionBanner } from './components/DangerousFunctionBanner';
+import { QueryBrowser } from './components/QueryBrowser';
 import { useFabric } from './hooks/useFabric';
 import type { LlmAvailability } from './types/api';
 
@@ -48,6 +49,7 @@ export function App() {
     authStatus,
     workspaces,
     dataflows,
+    queries,
     queryResult,
     loading,
     error,
@@ -55,6 +57,7 @@ export function App() {
     signOut,
     fetchWorkspaces,
     fetchDataflows,
+    fetchQueries,
     createDataflow,
     executeQuery,
     generateMCode,
@@ -77,6 +80,16 @@ export function App() {
       if (wsId) fetchDataflows(wsId);
     },
     [fetchDataflows]
+  );
+
+  const handleDataflowChange = useCallback(
+    (dfId: string) => {
+      setSelectedDataflow(dfId);
+      if (dfId && selectedWorkspace) {
+        fetchQueries(selectedWorkspace, dfId);
+      }
+    },
+    [selectedWorkspace, fetchQueries]
   );
 
   const handleRun = useCallback(() => {
@@ -152,7 +165,7 @@ export function App() {
           <DataflowPicker
             dataflows={dataflows}
             value={selectedDataflow}
-            onChange={setSelectedDataflow}
+            onChange={handleDataflowChange}
             onCreateNew={() => selectedWorkspace && createDataflow(selectedWorkspace)}
           />
           <div style={{ flex: 1 }} />
@@ -193,13 +206,33 @@ export function App() {
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <Allotment vertical defaultSizes={[300, 200]}>
             <Allotment.Pane minSize={150}>
-              <QueryEditor
-                value={mCode}
-                onChange={setMCode}
-                onRun={handleRun}
-                loading={loading}
-                dark={dark}
-              />
+              {selectedDataflow ? (
+                <Allotment defaultSizes={[200, 600]}>
+                  <Allotment.Pane minSize={120} preferredSize={200}>
+                    <QueryBrowser
+                      queries={queries}
+                      onSelectQuery={(q) => setMCode(q.expression)}
+                    />
+                  </Allotment.Pane>
+                  <Allotment.Pane>
+                    <QueryEditor
+                      value={mCode}
+                      onChange={setMCode}
+                      onRun={handleRun}
+                      loading={loading}
+                      dark={dark}
+                    />
+                  </Allotment.Pane>
+                </Allotment>
+              ) : (
+                <QueryEditor
+                  value={mCode}
+                  onChange={setMCode}
+                  onRun={handleRun}
+                  loading={loading}
+                  dark={dark}
+                />
+              )}
             </Allotment.Pane>
             <Allotment.Pane minSize={100}>
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

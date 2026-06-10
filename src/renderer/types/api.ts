@@ -38,6 +38,12 @@ export interface FabricError {
   statusCode?: number;
 }
 
+// ── Dataflow Queries ──
+export interface DataflowQuery {
+  name: string;
+  expression: string;
+}
+
 // ── LLM ──
 export type LlmProvider = 'gh-copilot' | 'claude';
 
@@ -68,6 +74,10 @@ export interface PqWorkbenchApi {
       expression: string,
       topN?: number
     ) => Promise<QueryResult>;
+    getQueries: (
+      workspaceId: string,
+      dataflowId: string
+    ) => Promise<DataflowQuery[]>;
   };
   llm: {
     generateMCode: (

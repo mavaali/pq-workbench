@@ -7,6 +7,7 @@ export const IPC_CHANNELS = {
   FABRIC_LIST_DATAFLOWS: 'fabric:list-dataflows',
   FABRIC_CREATE_DATAFLOW: 'fabric:create-dataflow',
   FABRIC_EXECUTE_QUERY: 'fabric:execute-query',
+  FABRIC_GET_QUERIES: 'fabric:get-queries',
   LLM_GENERATE: 'llm:generate',
   LLM_CHECK_AVAILABILITY: 'llm:check-availability',
 } as const;

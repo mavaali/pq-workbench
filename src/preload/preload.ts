@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
       expression: string,
       topN?: number
     ) => invoke(IPC_CHANNELS.FABRIC_EXECUTE_QUERY, workspaceId, dataflowId, expression, topN),
+    getQueries: (workspaceId: string, dataflowId: string) =>
+      invoke(IPC_CHANNELS.FABRIC_GET_QUERIES, workspaceId, dataflowId),
   },
   llm: {
     generateMCode: (provider: string, prompt: string, context?: string[]) =>

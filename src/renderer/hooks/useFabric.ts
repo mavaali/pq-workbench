@@ -3,6 +3,7 @@ import type {
   AuthStatus,
   FabricWorkspace,
   FabricDataflow,
+  DataflowQuery,
   QueryResult,
   LlmProvider,
   LlmResult,
@@ -46,6 +47,7 @@ export function useFabric() {
   const [workspaces, setWorkspaces] = useState<FabricWorkspace[]>([]);
   const [dataflows, setDataflows] = useState<FabricDataflow[]>([]);
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
+  const [queries, setQueries] = useState<DataflowQuery[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,6 +123,7 @@ export function useFabric() {
   const fetchDataflows = useCallback(async (workspaceId: string) => {
     setLoading(true);
     setError(null);
+    setQueries([]);
     try {
       const dfs = api ? await api.fabric.listDataflows(workspaceId) : MOCK_DATAFLOWS;
       setDataflows(dfs);
@@ -128,6 +131,15 @@ export function useFabric() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const fetchQueries = useCallback(async (workspaceId: string, dataflowId: string) => {
+    try {
+      const qs = api ? await api.fabric.getQueries(workspaceId, dataflowId) : [];
+      setQueries(qs);
+    } catch {
+      setQueries([]);
     }
   }, []);
 
@@ -206,6 +218,7 @@ export function useFabric() {
     authStatus,
     workspaces,
     dataflows,
+    queries,
     queryResult,
     loading,
     error,
@@ -213,6 +226,7 @@ export function useFabric() {
     signOut,
     fetchWorkspaces,
     fetchDataflows,
+    fetchQueries,
     createDataflow,
     executeQuery,
     generateMCode,
