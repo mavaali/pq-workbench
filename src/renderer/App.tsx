@@ -42,6 +42,8 @@ export function App() {
     `let\n    Source = Table.FromRecords({\n        [ID=1, Name="Hello"],\n        [ID=2, Name="World"]\n    })\nin\n    Source`
   );
   const [showNL, setShowNL] = useState(false);
+  const [activeQueryName, setActiveQueryName] = useState<string | undefined>();
+  const [activeQueryDoc, setActiveQueryDoc] = useState<string | undefined>();
   const [llmAvailability, setLlmAvailability] = useState<LlmAvailability | null>(null);
 
   const fabric = useFabric();
@@ -123,8 +125,8 @@ export function App() {
       setError('This looks like natural language. Use "Generate M" in AI Assist first, then run the generated code.');
       return;
     }
-    executeQuery(selectedWorkspace, selectedDataflow, mCode);
-  }, [selectedWorkspace, selectedDataflow, mCode, executeQuery, showNL, setError]);
+    executeQuery(selectedWorkspace, selectedDataflow, mCode, undefined, activeQueryName, activeQueryDoc);
+  }, [selectedWorkspace, selectedDataflow, mCode, executeQuery, showNL, setError, activeQueryName, activeQueryDoc]);
 
   const handleGenerate = useCallback(
     async (prompt: string, provider: 'gh-copilot' | 'claude', context?: string[]) => {
@@ -228,13 +230,17 @@ export function App() {
                   <Allotment.Pane minSize={120} preferredSize={200}>
                     <QueryBrowser
                       queries={queries}
-                      onSelectQuery={(q) => setMCode(q.expression)}
+                      onSelectQuery={(q) => {
+                        setMCode(q.expression);
+                        setActiveQueryName(q.name);
+                        setActiveQueryDoc((q as any).originalDocument);
+                      }}
                     />
                   </Allotment.Pane>
                   <Allotment.Pane>
                     <QueryEditor
                       value={mCode}
-                      onChange={setMCode}
+                      onChange={(v) => { setMCode(v); setActiveQueryName(undefined); setActiveQueryDoc(undefined); }}
                       onRun={handleRun}
                       loading={loading}
                       dark={dark}
@@ -244,7 +250,7 @@ export function App() {
               ) : (
                 <QueryEditor
                   value={mCode}
-                  onChange={setMCode}
+                  onChange={(v) => { setMCode(v); setActiveQueryName(undefined); setActiveQueryDoc(undefined); }}
                   onRun={handleRun}
                   loading={loading}
                   dark={dark}

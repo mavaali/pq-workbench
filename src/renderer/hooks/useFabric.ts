@@ -162,12 +162,12 @@ export function useFabric() {
   }, []);
 
   const executeQuery = useCallback(
-    async (workspaceId: string, dataflowId: string, expression: string, topN?: number) => {
+    async (workspaceId: string, dataflowId: string, expression: string, topN?: number, queryName?: string, originalDocument?: string) => {
       setLoading(true);
       setError(null);
       try {
         const result = api
-          ? await api.fabric.executeQuery(workspaceId, dataflowId, expression, topN)
+          ? await api.fabric.executeQuery(workspaceId, dataflowId, expression, topN, queryName, originalDocument)
           : MOCK_QUERY_RESULT;
         setQueryResult(result);
         return result;

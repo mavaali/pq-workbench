@@ -73,7 +73,9 @@ export function registerIpcHandlers(): void {
       workspaceId: string,
       dataflowId: string,
       expression: string,
-      topN?: number
+      topN?: number,
+      queryName?: string,
+      originalDocument?: string
     ) => {
       if (!workspaceId || typeof workspaceId !== 'string') {
         throw new Error('workspaceId is required');
@@ -84,7 +86,7 @@ export function registerIpcHandlers(): void {
       if (!expression || typeof expression !== 'string') {
         throw new Error('expression is required');
       }
-      return fabric.evaluateQuery(workspaceId, dataflowId, expression, topN);
+      return fabric.evaluateQuery(workspaceId, dataflowId, expression, topN, queryName, originalDocument);
     }
   );
 

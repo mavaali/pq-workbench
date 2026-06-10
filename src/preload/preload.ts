@@ -29,8 +29,10 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
       workspaceId: string,
       dataflowId: string,
       expression: string,
-      topN?: number
-    ) => invoke(IPC_CHANNELS.FABRIC_EXECUTE_QUERY, workspaceId, dataflowId, expression, topN),
+      topN?: number,
+      queryName?: string,
+      originalDocument?: string
+    ) => invoke(IPC_CHANNELS.FABRIC_EXECUTE_QUERY, workspaceId, dataflowId, expression, topN, queryName, originalDocument),
     getQueries: (workspaceId: string, dataflowId: string) =>
       invoke(IPC_CHANNELS.FABRIC_GET_QUERIES, workspaceId, dataflowId),
   },

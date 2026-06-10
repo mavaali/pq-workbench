@@ -82,9 +82,15 @@ export async function evaluateQuery(
   workspaceId: string,
   dataflowId: string,
   expression: string,
-  topN = 100
+  topN = 100,
+  queryName?: string,
+  originalDocument?: string
 ): Promise<QueryResult> {
   const start = Date.now();
+
+  // If we have the original section document and a named query, use it directly
+  const effectiveName = queryName || 'pqworkbench_query';
+  const effectiveDoc = originalDocument || wrapAsSection(expression, effectiveName);
 
   const token = await getToken();
   const res = await fetch(
@@ -96,8 +102,8 @@ export async function evaluateQuery(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        queryName: 'pqworkbench_query',
-        customMashupDocument: wrapAsSection(expression, 'pqworkbench_query'),
+        queryName: effectiveName,
+        customMashupDocument: effectiveDoc,
       }),
     }
   );
@@ -126,6 +132,7 @@ export async function evaluateQuery(
 export interface DataflowQuery {
   name: string;
   expression: string;
+  originalDocument?: string;
 }
 
 interface DefinitionPart {
@@ -198,7 +205,9 @@ export async function getDataflowQueries(
     if (!mashupPart?.payload) return [];
 
     const decoded = Buffer.from(mashupPart.payload, 'base64').toString('utf-8');
-    return parseSectionDocument(decoded);
+    const queries = parseSectionDocument(decoded);
+    // Attach the original document so executeQuery can send it directly
+    return queries.map((q) => ({ ...q, originalDocument: decoded }));
   } catch (e) {
     console.error('[Fabric] getDataflowQueries error:', e);
     return [];
