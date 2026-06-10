@@ -170,9 +170,8 @@ export function App() {
         <DangerousFunctionBanner mCode={mCode} />
 
         {/* Main content */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          {/* Editor area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: 'column' }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
             <QueryEditor
               value={mCode}
               onChange={setMCode}
@@ -180,13 +179,13 @@ export function App() {
               loading={loading}
               dark={dark}
             />
-            {showNL && (
-              <NLInput
-                onGenerate={handleGenerate}
-                checkAvailability={checkLlmAvailability}
-              />
-            )}
           </div>
+          {showNL && (
+            <NLInput
+              onGenerate={handleGenerate}
+              checkAvailability={checkLlmAvailability}
+            />
+          )}
         </div>
 
         {/* Bottom panel */}
