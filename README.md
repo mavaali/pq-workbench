@@ -25,6 +25,15 @@ Write M code, or describe what you want in plain English and let AI generate it.
 
 ### Install and run
 
+**Option 1: Download a release** (no dev tools needed)
+
+Go to [Releases](https://github.com/mavaali/pq-workbench/releases/latest) and download:
+- **macOS:** `.dmg`
+- **Windows:** `.exe` (portable or installer)
+- **Linux:** `.AppImage`
+
+**Option 2: Build from source**
+
 ```bash
 git clone https://github.com/mavaali/pq-workbench.git
 cd pq-workbench
