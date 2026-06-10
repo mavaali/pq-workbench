@@ -96,7 +96,7 @@ export async function evaluateQuery(
       },
       body: JSON.stringify({
         queryName: 'pqworkbench_query',
-        customMashupDocument: expression,
+        customMashupDocument: wrapAsSection(expression, 'pqworkbench_query'),
       }),
     }
   );
@@ -123,6 +123,15 @@ export async function evaluateQuery(
     rowCount: 1,
     executionTimeMs: Date.now() - start,
   };
+}
+
+/** Wrap a raw M expression as a section document if it isn't one already. */
+function wrapAsSection(expression: string, queryName: string): string {
+  const trimmed = expression.trim();
+  // Already a section document
+  if (trimmed.toLowerCase().startsWith('section ')) return trimmed;
+  // Wrap it
+  return `section Section1; shared ${queryName} = ${trimmed};`;
 }
 
 function parseJsonResult(
