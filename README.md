@@ -1,23 +1,159 @@
 # PQ Workbench
 
-A desktop application for authoring, testing, and executing Power Query (M code) against Microsoft Fabric workspaces — with optional AI-assisted code generation.
+A lightweight desktop app for running Power Query (M code) against Microsoft Fabric — without opening the portal.
 
-![Screenshot placeholder](docs/screenshot.png)
+Write M code, or describe what you want in plain English and let AI generate it. Pick a workspace, pick a dataflow, hit Run, see results.
 
-## Features
+## What it does
 
-- **Power Query Editor** — Monaco-based editor with M language syntax highlighting and Ctrl+Enter execution
-- **Fabric Integration** — Browse workspaces, select dataflows, and evaluate M expressions against the Fabric API
-- **AI Assist** — Generate M code from natural language using GitHub Copilot CLI or Claude CLI (subprocess model — no API keys leave the machine)
-- **Security-first** — Context isolation, sandbox, IPC allowlist, and a Context Preview dialog so you see exactly what's sent to an LLM before it leaves
-- **Dangerous Function Warnings** — Flags `Web.Contents`, `File.Contents`, `Sql.Database`, `AdoDotNet.Query`, and `Expression.Evaluate` before execution
-- **Fluent UI v9** — Native-feeling UI with light/dark theme support
+| Capability | How |
+|---|---|
+| **Execute M code** | Calls the Fabric Dataflow `executeQuery` API, parses Apache Arrow responses |
+| **Browse queries** | Reads the dataflow definition, lists named queries in a sidebar — click to load |
+| **AI Assist** | GitHub Copilot CLI generates M from natural language. Context Preview shows exactly what's sent. |
+| **Browse Fabric** | Searchable workspace + dataflow pickers, alphabetically sorted |
+| **Inspect results** | Sortable data grid, schema tab (column names/types), query info tab |
 
-## Prerequisites
+## Quick Start
 
-- **Node.js 18+** and npm
-- **Electron** (installed via npm)
-- For AI Assist: `gh` CLI with Copilot extension and/or `claude` CLI
+### Prerequisites
+
+- **Node.js 18+** ([download](https://nodejs.org))
+- **Git** (to clone)
+- A **Microsoft Fabric** workspace with at least one dataflow
+- *(Optional)* [GitHub Copilot CLI](https://gh.io/copilot-cli) for AI Assist
+
+### Install and run
+
+```bash
+git clone https://github.com/mavaali/pq-workbench.git
+cd pq-workbench
+npm install
+npm run dev
+```
+
+The app opens. Click **Sign In** — your browser opens for Microsoft login. After auth, your workspaces appear in the dropdown.
+
+### Build a distributable
+
+```bash
+# macOS
+npm run dist:mac
+
+# Windows
+npm run dist:win
+
+# Linux
+npm run dist:linux
+```
+
+Outputs land in `release/`.
+
+## Usage Scenarios
+
+### 1. Quick M code test
+
+You have an M expression and want to see what it returns against live Fabric data.
+
+1. Sign in → pick workspace → pick dataflow
+2. Type or paste M code in the editor
+3. Press **Ctrl+Enter** (or click Run)
+4. Results appear in the Data tab. Check Schema tab for column types.
+
+### 2. Ask a question in plain English
+
+You need data but don't know M syntax.
+
+1. Toggle **AI Assist** in the toolbar
+2. Type: *"Show top 10 customers by revenue from the Sales table"*
+3. Click **Generate M** → review the Context Preview → click **Approve & Send**
+4. Copilot CLI generates M code → it appears in the editor
+5. Review/tweak the M → click Run
+
+### 3. Debug an existing dataflow query
+
+A production dataflow is returning unexpected results. You want to test individual query steps.
+
+1. Sign in → select the workspace → select the dataflow
+2. The **query browser sidebar** shows all named queries from the dataflow
+3. Click a query to load its M into the editor
+4. Edit and re-run to isolate the issue
+
+> **Note:** The query browser requires **Contributor** role on the workspace. Viewers see "(need contributor access)."
+
+### 4. Explore a new data source
+
+You want to see what's in a Fabric Lakehouse table before building a full dataflow.
+
+1. Create or select a scratch dataflow
+2. Write an M expression connecting to your data source
+3. Run it — inspect schema and sample rows
+4. Iterate until you have the right shape, then move the M to your production dataflow
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│  Electron App                                │
+│  ┌─────────────┐  ┌──────────────────────┐  │
+│  │ Renderer     │  │ Main Process         │  │
+│  │ (React 18 +  │  │                      │  │
+│  │  Fluent v9)  │  │ MSAL (PBI Desktop    │  │
+│  │              │  │  client ID, PKCE)    │  │
+│  │ Monaco Editor│  │                      │  │
+│  │ Results Grid │  │ Fabric REST API      │  │
+│  │ Query Browser│  │ (executeQuery,       │  │
+│  │ AI Assist    │  │  getDefinition)      │  │
+│  └─────────────┘  │                      │  │
+│                    │ Copilot CLI          │  │
+│                    │ (subprocess)         │  │
+│                    └──────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+### Key technical decisions
+
+| Decision | Choice | Why |
+|---|---|---|
+| Auth | MSAL PKCE with PBI Desktop client ID | Pre-authorized in all MSFT tenants, no app registration needed |
+| API scopes | `analysis.windows.net/powerbi/api/.default` | Fabric API accepts PBI tokens for executeQuery |
+| Response format | Apache Arrow IPC | Parsed client-side with `apache-arrow` |
+| M code format | Auto-wrapped as section document | `executeQuery` requires `section Section1; shared name = <expr>;` |
+| LLM integration | CLI subprocess (`copilot -p`) | Zero infra, user owns auth + cost |
+| Editor | Monaco | M syntax highlighting, shared codebase with VS Code |
+
+## Security
+
+- **Electron hardening:** `contextIsolation: true`, `nodeIntegration: false`, `webSecurity: true`
+- **IPC allowlist:** All renderer↔main communication through strict typed channels
+- **Context Preview:** Every LLM call shows you exactly what will be sent before it leaves your machine
+- **Dangerous function linter:** Warns before executing `Web.Contents`, `File.Contents`, `Sql.Database`, `AdoDotNet.Query`, `Expression.Evaluate`
+- **No secrets stored:** Auth tokens managed by MSAL; LLM auth owned by the CLI tools
+
+## Tech Stack
+
+- **Electron** — desktop runtime
+- **React 18** + **TypeScript** — UI
+- **Fluent UI v9** — design system
+- **Monaco Editor** — M code editing
+- **MSAL Node** — Azure AD authentication
+- **Apache Arrow** — result parsing
+- **Allotment** — resizable split panels
+- **GitHub Copilot CLI** — NL → M generation
+
+## Contributing
+
+This is an early prototype. Issues and PRs welcome.
+
+```bash
+npm run dev          # Start dev mode (hot reload)
+npm run build        # Production build
+npm run typecheck    # Type check without emitting
+```
+
+## License
+
+MIT
 
 ## Quick Start
 
@@ -28,91 +164,6 @@ npm install
 npm run dev
 ```
 
-The app launches with mock data so the UI is fully functional before configuring Fabric auth.
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│  Renderer Process (React + Fluent UI v9)        │
-│  ─ No Node.js access                            │
-│  ─ Communicates via window.pqWorkbench API      │
-└───────────────┬─────────────────────────────────┘
-                │ contextBridge (IPC allowlist)
-┌───────────────▼─────────────────────────────────┐
-│  Preload Script                                  │
-│  ─ Exposes typed async methods                   │
-│  ─ Validates channels against allowlist          │
-└───────────────┬─────────────────────────────────┘
-                │ ipcRenderer.invoke()
-┌───────────────▼─────────────────────────────────┐
-│  Main Process                                    │
-│  ├── auth.ts    — MSAL public client auth        │
-│  ├── fabric.ts  — Fabric REST API client         │
-│  ├── llm.ts     — CLI subprocess wrapper         │
-│  └── ipc.ts     — Handler registration           │
-└─────────────────────────────────────────────────┘
-```
-
-### Security Model
-
-| Setting              | Value   |
-|----------------------|---------|
-| `nodeIntegration`    | `false` |
-| `contextIsolation`   | `true`  |
-| `sandbox`            | `true`  |
-| `webSecurity`        | `true`  |
-| DevTools             | Dev only |
-
-All renderer↔main communication flows through an **IPC allowlist** defined in `src/shared/channels.ts`. The preload script validates every channel before invoking it. No direct Node.js APIs are accessible from the renderer.
-
-### LLM Integration
-
-LLM calls use a **CLI subprocess model** — no API keys are stored or transmitted by the app. The app shells out to `gh copilot suggest` or `claude --print` with a 30-second timeout. The **Context Preview dialog** shows the user exactly what will be sent before any data leaves the machine.
-
-## Project Structure
-
-```
-src/
-├── main/           # Electron main process
-│   ├── main.ts     # Window creation & lifecycle
-│   ├── ipc.ts      # IPC handler registration
-│   ├── auth.ts     # MSAL authentication
-│   ├── fabric.ts   # Fabric REST client
-│   └── llm.ts      # LLM CLI wrapper
-├── preload/        # Context bridge
-│   └── preload.ts
-├── renderer/       # React UI
-│   ├── App.tsx
-│   ├── components/ # AuthButton, QueryEditor, NLInput, ResultsPanel, etc.
-│   ├── hooks/      # useFabric hook
-│   └── types/      # TypeScript interfaces
-└── shared/         # IPC channel constants
-    └── channels.ts
-```
-
-## Scripts
-
-| Command           | Description                          |
-|--------------------|--------------------------------------|
-| `npm run dev`      | Start in dev mode with hot reload    |
-| `npm run build`    | Production build                     |
-| `npm run start`    | Launch built app                     |
-| `npm run typecheck`| Type-check without emitting          |
-
-## Configuration
-
-Set environment variables or update `src/main/auth.ts`:
-
-- `PQ_WORKBENCH_CLIENT_ID` — Azure AD app registration client ID
-
-## Contributing
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Commit changes (`git commit -m 'Add my feature'`)
-4. Push and open a Pull Request
-
 ## License
 
-[MIT](LICENSE)
+MIT
