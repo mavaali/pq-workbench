@@ -126,8 +126,11 @@ function wrapAsSection(expression: string, queryName: string): string {
   const trimmed = expression.trim();
   // Already a section document
   if (trimmed.toLowerCase().startsWith('section ')) return trimmed;
-  // Wrap it
-  return `section Section1; shared ${queryName} = ${trimmed};`;
+  // Remove trailing semicolon if present (we'll add our own)
+  const clean = trimmed.replace(/;+\s*$/, '');
+  const doc = `section Section1; shared ${queryName} = ${clean};`;
+  console.log('[Fabric] Mashup document:', doc);
+  return doc;
 }
 
 function parseArrowResult(

@@ -78,13 +78,21 @@ export function App() {
   );
 
   const handleRun = useCallback(() => {
-    if (selectedWorkspace && selectedDataflow) {
-      executeQuery(selectedWorkspace, selectedDataflow, mCode);
-    } else {
-      // Run with mock data for demo
-      executeQuery('ws-mock', 'df-mock', mCode);
+    if (!selectedWorkspace || !selectedDataflow) {
+      setError('Select a workspace and dataflow first');
+      return;
     }
-  }, [selectedWorkspace, selectedDataflow, mCode, executeQuery]);
+    // Basic check: if the editor content doesn't look like M code, warn
+    const trimmed = mCode.trim();
+    const looksLikeM = /^(let\b|section\b|#|Table\.|List\.|Record\.|Text\.|Number\.|Date\.|Web\.|Sql\.|File\.)/.test(trimmed)
+      || trimmed.startsWith('=')
+      || trimmed.includes('=>');
+    if (!looksLikeM && showNL) {
+      setError('This looks like natural language. Use "Generate M" in AI Assist first, then run the generated code.');
+      return;
+    }
+    executeQuery(selectedWorkspace, selectedDataflow, mCode);
+  }, [selectedWorkspace, selectedDataflow, mCode, executeQuery, showNL, setError]);
 
   const handleGenerate = useCallback(
     async (prompt: string, provider: 'gh-copilot' | 'claude', context?: string[]) => {
