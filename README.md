@@ -28,9 +28,11 @@ Write M code, or describe what you want in plain English and let AI generate it.
 **Option 1: Download a release** (no dev tools needed)
 
 Go to [Releases](https://github.com/mavaali/pq-workbench/releases/latest) and download:
-- **macOS:** `.dmg`
+- **macOS:** `.dmg` — after install, right-click the app → Open (first launch only — the app isn't code-signed yet)
 - **Windows:** `.exe` (portable or installer)
 - **Linux:** `.AppImage`
+
+> **macOS Gatekeeper note:** If you see "app is damaged," run: `xattr -cr /Applications/PQ\ Workbench.app`
 
 **Option 2: Build from source**
 
