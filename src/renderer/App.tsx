@@ -132,15 +132,6 @@ export function App() {
       setError('Select a workspace and dataflow first');
       return;
     }
-    // Basic check: if the editor content doesn't look like M code, warn
-    const trimmed = mCode.trim();
-    const looksLikeM = /^(let\b|section\b|#|Table\.|List\.|Record\.|Text\.|Number\.|Date\.|Web\.|Sql\.|File\.)/.test(trimmed)
-      || trimmed.startsWith('=')
-      || trimmed.includes('=>');
-    if (!looksLikeM && showNL) {
-      setError('This looks like natural language. Use "Generate M" in AI Assist first, then run the generated code.');
-      return;
-    }
 
     // Analyze connection bindings before executing. If any required source isn't bound,
     // open the modal to let the user pick connections, bind, then execute.
