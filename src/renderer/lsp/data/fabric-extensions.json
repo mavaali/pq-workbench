@@ -1,0 +1,132 @@
+[
+    {
+        "name": "Lakehouse.Contents",
+        "documentation": {
+            "description": "Returns the contents of a Microsoft Fabric Lakehouse, organized by workspace and lakehouse.",
+            "longDescription": "Fabric-specific M extension. Returns a navigation table whose root is workspaces. Drill into a workspace to see lakehouses, and into a lakehouse to see Tables and Files."
+        },
+        "functionParameters": [
+            {
+                "name": "optionalParameters",
+                "type": "record",
+                "isRequired": false,
+                "isNullable": true,
+                "caption": null,
+                "description": "Optional record of parameters. Supports HierarchicalNavigation (logical).",
+                "sampleValues": null,
+                "allowedValues": null,
+                "defaultValue": null,
+                "fields": null,
+                "enumNames": null,
+                "enumCaptions": null
+            }
+        ],
+        "completionItemKind": 3,
+        "isDataSource": true,
+        "type": "function"
+    },
+    {
+        "name": "Fabric.Warehouse",
+        "documentation": {
+            "description": "Returns the contents of a Microsoft Fabric Warehouse, organized by workspace and warehouse.",
+            "longDescription": "Fabric-specific M extension. Returns a navigation table for browsing Warehouses across workspaces and selecting tables/views."
+        },
+        "functionParameters": [
+            {
+                "name": "optionalParameters",
+                "type": "record",
+                "isRequired": false,
+                "isNullable": true,
+                "caption": null,
+                "description": "Optional record of parameters. Supports HierarchicalNavigation (logical).",
+                "sampleValues": null,
+                "allowedValues": null,
+                "defaultValue": null,
+                "fields": null,
+                "enumNames": null,
+                "enumCaptions": null
+            }
+        ],
+        "completionItemKind": 3,
+        "isDataSource": true,
+        "type": "function"
+    },
+    {
+        "name": "PowerPlatform.Dataflows",
+        "documentation": {
+            "description": "Returns a navigation table of Power Platform Dataflows the caller can access.",
+            "longDescription": "Used to consume the output of one dataflow from another. The returned navigation table is keyed by environment, workspace, dataflow, and entity."
+        },
+        "functionParameters": [
+            {
+                "name": "optionalParameters",
+                "type": "record",
+                "isRequired": false,
+                "isNullable": true,
+                "caption": null,
+                "description": "Optional record of parameters.",
+                "sampleValues": null,
+                "allowedValues": null,
+                "defaultValue": null,
+                "fields": null,
+                "enumNames": null,
+                "enumCaptions": null
+            }
+        ],
+        "completionItemKind": 3,
+        "isDataSource": true,
+        "type": "function"
+    },
+    {
+        "name": "Pbi.Dataflows",
+        "documentation": {
+            "description": "Returns a navigation table of Power BI Dataflows the caller can access.",
+            "longDescription": "Legacy alias of PowerPlatform.Dataflows used by some Power BI surfaces."
+        },
+        "functionParameters": [
+            {
+                "name": "optionalParameters",
+                "type": "record",
+                "isRequired": false,
+                "isNullable": true,
+                "caption": null,
+                "description": "Optional record of parameters.",
+                "sampleValues": null,
+                "allowedValues": null,
+                "defaultValue": null,
+                "fields": null,
+                "enumNames": null,
+                "enumCaptions": null
+            }
+        ],
+        "completionItemKind": 3,
+        "isDataSource": true,
+        "type": "function"
+    },
+    {
+        "name": "Fabric.Lakehouses",
+        "documentation": {
+            "description": "Returns a navigation table of Fabric Lakehouses (newer connector surface alongside Lakehouse.Contents).",
+            "longDescription": null
+        },
+        "functionParameters": [
+            {
+                "name": "optionalParameters",
+                "type": "record",
+                "isRequired": false,
+                "isNullable": true,
+                "caption": null,
+                "description": "Optional record of parameters.",
+                "sampleValues": null,
+                "allowedValues": null,
+                "defaultValue": null,
+                "fields": null,
+                "enumNames": null,
+                "enumCaptions": null
+            }
+        ],
+        "completionItemKind": 3,
+        "isDataSource": true,
+        "type": "function"
+    }
+]

@@ -1,7 +1,12 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
-import { Button, Toolbar, ToolbarButton } from '@fluentui/react-components';
+import { Toolbar, ToolbarButton } from '@fluentui/react-components';
 import { PlayRegular } from '@fluentui/react-icons';
+import {
+  POWERQUERY_LANGUAGE_ID,
+  attachAnalysisToModel,
+  type AnalysisHandle,
+} from '../lsp/powerquery';
 
 interface Props {
   value: string;
@@ -14,6 +19,15 @@ interface Props {
 export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const isSettingValue = useRef(false);
+  const analysisHandleRef = useRef<AnalysisHandle | null>(null);
+
+  // Tear down the per-model Analysis when the component unmounts.
+  useEffect(() => {
+    return () => {
+      analysisHandleRef.current?.dispose();
+      analysisHandleRef.current = null;
+    };
+  }, []);
 
   // Sync external value changes into Monaco
   useEffect(() => {
@@ -31,9 +45,10 @@ export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
     // Set initial value explicitly
     editor.setValue(value);
 
-    // Register M language (basic tokenization)
-    monaco.languages.register({ id: 'powerquery' });
-    monaco.languages.setMonarchTokensProvider('powerquery', {
+    // Register M language (basic tokenization). The LSP module adds completion,
+    // hover, and diagnostics on top of this.
+    monaco.languages.register({ id: POWERQUERY_LANGUAGE_ID });
+    monaco.languages.setMonarchTokensProvider(POWERQUERY_LANGUAGE_ID, {
       keywords: [
         'let', 'in', 'if', 'then', 'else', 'true', 'false', 'null',
         'and', 'or', 'not', 'each', 'type', 'as', 'is', 'error',
@@ -72,6 +87,13 @@ export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
       run: () => onRun(),
     });
+
+    // Attach Microsoft powerquery-language-services to this model.
+    const model = editor.getModel();
+    if (model) {
+      analysisHandleRef.current?.dispose();
+      analysisHandleRef.current = attachAnalysisToModel(monaco, model);
+    }
   };
 
   return (
@@ -89,7 +111,7 @@ export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
       <div style={{ flex: 1, minHeight: 0 }}>
         <Editor
           height="100%"
-          language="powerquery"
+          language={POWERQUERY_LANGUAGE_ID}
           theme={dark ? 'vs-dark' : 'light'}
           value={value}
           onChange={(v) => {
@@ -104,6 +126,10 @@ export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
             automaticLayout: true,
             wordWrap: 'on',
             tabSize: 4,
+            // Render hover/completion popups in a fixed overflow layer so they
+            // can escape the Allotment / flex containers above us. Without this,
+            // long signatures get clipped at the editor pane's right/bottom edge.
+            fixedOverflowWidgets: true,
           }}
         />
       </div>
