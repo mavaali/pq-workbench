@@ -8,14 +8,19 @@ import {
   Spinner,
   tokens,
   Link,
+  Tooltip,
   makeStyles,
+  mergeClasses,
 } from '@fluentui/react-components';
 import {
   CheckmarkCircle24Filled,
-  DismissCircle24Filled,
   Sparkle24Filled,
+  Copy16Regular,
+  ArrowRight16Regular,
 } from '@fluentui/react-icons';
-import type { AuthStatus, LlmAvailability } from '../types/api';
+import Fabric32Color from '@fabric-msft/svg-icons/Fabric32Color';
+import type { AuthStatus, LlmAvailability, LlmProvider } from '../types/api';
+import { ProviderStatusIcons } from './ProviderStatusIcons';
 
 interface Props {
   authStatus: AuthStatus;
@@ -23,83 +28,118 @@ interface Props {
   llmAvailability: LlmAvailability | null;
 }
 
+const TEAL_GRADIENT = 'linear-gradient(90deg, #15B0AB 0%, #0078A6 100%)';
+const TITLE_GRADIENT =
+  'linear-gradient(135deg, #15B0AB 0%, #0078A6 50%, #6E3FC9 100%)';
+
 const useStyles = makeStyles({
   surface: {
-    maxWidth: '720px',
-    width: '90vw',
+    maxWidth: '760px',
+    width: '92vw',
     padding: '0',
-    borderRadius: '16px',
+    borderRadius: '20px',
     overflow: 'hidden',
+    backgroundColor: tokens.colorNeutralBackground1,
+    backgroundImage: `
+      radial-gradient(circle at 0% 0%, ${tokens.colorPaletteTealBackground2} 0%, transparent 45%),
+      radial-gradient(circle at 100% 100%, ${tokens.colorPaletteLightTealBackground2} 0%, transparent 50%)
+    `,
+    boxShadow: tokens.shadow64,
+    animationName: {
+      from: { opacity: 0, transform: 'translateY(8px) scale(0.985)' },
+      to: { opacity: 1, transform: 'translateY(0) scale(1)' },
+    },
+    animationDuration: '280ms',
+    animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
   },
   body: {
-    padding: '40px 36px 36px',
+    padding: '48px 44px 40px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '28px',
+    gap: '36px',
   },
   header: {
     textAlign: 'center',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '4px',
+    gap: '6px',
   },
   title: {
-    fontSize: '22px',
+    fontSize: '28px',
     fontWeight: 700,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
+    letterSpacing: '-0.02em',
+    margin: 0,
+    lineHeight: 1.15,
+  },
+  titleAccent: {
+    background: TITLE_GRADIENT,
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
   },
   subtitle: {
-    fontSize: '13px',
+    fontSize: '14px',
     color: tokens.colorNeutralForeground3,
+    marginTop: '4px',
   },
   cards: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
+    gap: '20px',
   },
   card: {
+    position: 'relative',
     border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: '12px',
+    borderRadius: '14px',
     padding: '24px',
+    paddingTop: '28px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '14px',
     backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: tokens.shadow2,
+    transitionProperty: 'transform, box-shadow',
+    transitionDuration: '180ms',
+    transitionTimingFunction: 'cubic-bezier(0.33, 1, 0.68, 1)',
+    overflow: 'hidden',
+    ':hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: tokens.shadow16,
+    },
+    '::before': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: '3px',
+      background: tokens.colorNeutralStroke2,
+    },
   },
   fabricCard: {
-    border: `2px solid ${tokens.colorBrandStroke1}`,
-    borderRadius: '12px',
-    padding: '24px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-    backgroundColor: tokens.colorNeutralBackground1,
-    boxShadow: tokens.shadow4,
-  },
-  cardIcon: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '20px',
-    fontWeight: 700,
-    color: '#fff',
+    boxShadow: tokens.shadow8,
+    '::before': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: '3px',
+      background: TEAL_GRADIENT,
+    },
   },
   cardTitle: {
-    fontSize: '16px',
+    fontSize: '17px',
     fontWeight: 600,
     margin: 0,
+    letterSpacing: '-0.01em',
   },
   cardDesc: {
     fontSize: '13px',
     color: tokens.colorNeutralForeground3,
     margin: 0,
-    lineHeight: '1.4',
+    lineHeight: '1.5',
   },
   cliRow: {
     display: 'flex',
@@ -109,31 +149,38 @@ const useStyles = makeStyles({
     padding: '6px 0',
   },
   cliName: {
-    fontFamily: 'monospace',
+    fontFamily: tokens.fontFamilyMonospace,
     fontWeight: 500,
+    fontSize: '12px',
   },
-  statusAvailable: {
+  signInHint: {
     display: 'flex',
     alignItems: 'center',
-    gap: '4px',
-    color: '#0a7c3a',
+    gap: '6px',
     fontSize: '12px',
-    fontWeight: 500,
+    padding: '6px 8px',
+    marginTop: '4px',
+    backgroundColor: tokens.colorNeutralBackground2,
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: '6px',
   },
-  statusMissing: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    color: tokens.colorNeutralForeground3,
+  signInCmd: {
+    fontFamily: tokens.fontFamilyMonospace,
     fontSize: '12px',
+    flex: 1,
+    color: tokens.colorNeutralForeground2,
+    userSelect: 'all',
   },
   badge: {
-    fontSize: '11px',
-    fontWeight: 600,
-    padding: '2px 8px',
-    borderRadius: '4px',
+    position: 'absolute',
+    top: '14px',
+    right: '14px',
+    fontSize: '10px',
+    fontWeight: 700,
+    padding: '3px 9px',
+    borderRadius: '12px',
     textTransform: 'uppercase' as const,
-    letterSpacing: '0.5px',
+    letterSpacing: '0.06em',
   },
   signingIn: {
     display: 'flex',
@@ -148,15 +195,53 @@ const useStyles = makeStyles({
     gap: '8px',
     fontSize: '14px',
     fontWeight: 500,
-    color: '#0a7c3a',
+    color: tokens.colorPaletteGreenForeground1,
+  },
+  signInButton: {
+    width: '100%',
+    height: '40px',
+    background: TEAL_GRADIENT,
+    border: 'none',
+    color: '#fff',
+    fontWeight: 600,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.15)',
+    transitionProperty: 'transform, box-shadow, filter',
+    transitionDuration: '160ms',
+    ':hover': {
+      filter: 'brightness(1.06)',
+      boxShadow: '0 2px 8px rgba(21,176,171,0.35), inset 0 1px 0 rgba(255,255,255,0.18)',
+    },
+    ':active': {
+      transform: 'translateY(1px)',
+    },
   },
 });
+
+const PROVIDERS: Array<{
+  id: LlmProvider;
+  name: string;
+  installUrl: string;
+  signInCmd: string;
+}> = [
+  {
+    id: 'gh-copilot',
+    name: 'GitHub Copilot CLI',
+    installUrl: 'https://docs.github.com/en/copilot/github-copilot-in-the-cli',
+    signInCmd: 'gh auth login --scopes copilot',
+  },
+  {
+    id: 'claude',
+    name: 'Claude CLI',
+    installUrl: 'https://docs.anthropic.com/en/docs/claude-cli',
+    signInCmd: 'claude login',
+  },
+];
 
 export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
   const styles = useStyles();
   const [signingIn, setSigningIn] = useState(false);
+  const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
 
-  // Auto-dismiss signing-in state when auth succeeds
   useEffect(() => {
     if (authStatus.signedIn) setSigningIn(false);
   }, [authStatus.signedIn]);
@@ -166,45 +251,70 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
     onSignIn();
   };
 
+  const handleCopy = async (cmd: string) => {
+    try {
+      await navigator.clipboard.writeText(cmd);
+      setCopiedCmd(cmd);
+      setTimeout(() => setCopiedCmd((c) => (c === cmd ? null : c)), 1500);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const isOpen = !authStatus.signedIn;
 
   return (
     <Dialog open={isOpen} modalType="alert">
       <DialogSurface className={styles.surface}>
         <DialogBody className={styles.body}>
-          {/* Header */}
           <div className={styles.header}>
-            <div className={styles.title}>⚡ PQ Workbench</div>
-            <div className={styles.subtitle}>Execute Power Query against Microsoft Fabric</div>
+            <Fabric32Color style={{ width: 44, height: 44 }} />
+            <h1 className={styles.title}>
+              Power Query Workbench
+            </h1>
+            <div className={styles.subtitle}>
+              for <span className={styles.titleAccent}>Microsoft Fabric</span>
+            </div>
           </div>
 
-          {/* Two-card layout */}
           <DialogContent className={styles.cards}>
             {/* Fabric card */}
-            <div className={styles.fabricCard}>
-              <div
-                className={styles.cardIcon}
-                style={{ backgroundColor: tokens.colorBrandBackground }}
+            <div className={mergeClasses(styles.card, styles.fabricCard)}>
+              <span
+                className={styles.badge}
+                style={{
+                  color: tokens.colorPaletteTealForeground2,
+                  backgroundColor: tokens.colorPaletteTealBackground2,
+                }}
               >
-                F
-              </div>
+                Required
+              </span>
               <h3 className={styles.cardTitle}>Sign in to Microsoft Fabric</h3>
               <p className={styles.cardDesc}>
-                Required to execute queries against your workspaces
+                Required to execute queries against your workspaces and dataflows.
               </p>
 
-              <div style={{ flex: 1 }} />
+              <div style={{ flex: 1, minHeight: 8 }} />
 
-              {/* Sign-in / signing-in / connected states */}
               {!signingIn && !authStatus.signedIn && (
-                <Button
-                  appearance="primary"
-                  size="large"
+                <button
+                  className={styles.signInButton}
                   onClick={handleSignIn}
-                  style={{ width: '100%' }}
+                  autoFocus
+                  type="button"
                 >
-                  Sign In
-                </Button>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    Sign in
+                    <ArrowRight16Regular />
+                  </span>
+                </button>
               )}
               {signingIn && !authStatus.signedIn && (
                 <div className={styles.signingIn}>
@@ -214,100 +324,14 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
               )}
               {authStatus.signedIn && (
                 <div className={styles.connected}>
-                  <CheckmarkCircle24Filled style={{ color: '#0a7c3a' }} />
+                  <CheckmarkCircle24Filled />
                   {authStatus.userName ?? 'Connected'}
-                  <span style={{ fontSize: 12, color: tokens.colorNeutralForeground3 }}>
-                    — Connected
-                  </span>
                 </div>
               )}
-
-              <span
-                className={styles.badge}
-                style={{
-                  color: tokens.colorBrandForeground1,
-                  backgroundColor: tokens.colorBrandBackground2,
-                }}
-              >
-                Required
-              </span>
             </div>
 
             {/* AI Assist card */}
             <div className={styles.card}>
-              <div
-                className={styles.cardIcon}
-                style={{ backgroundColor: '#8b5cf6' }}
-              >
-                <Sparkle24Filled />
-              </div>
-              <h3 className={styles.cardTitle}>AI Assist</h3>
-              <p className={styles.cardDesc}>
-                Generate M code from natural language
-              </p>
-
-              <div style={{ flex: 1 }} />
-
-              {/* CLI availability rows */}
-              <div>
-                <div className={styles.cliRow}>
-                  <span className={styles.cliName}>GitHub Copilot CLI</span>
-                  {llmAvailability === null ? (
-                    <Spinner size="extra-tiny" />
-                  ) : llmAvailability['gh-copilot'] ? (
-                    <span className={styles.statusAvailable}>
-                      <CheckmarkCircle24Filled style={{ fontSize: 16 }} />
-                      Available
-                    </span>
-                  ) : (
-                    <span className={styles.statusMissing}>
-                      <DismissCircle24Filled style={{ fontSize: 16, color: '#c33' }} />
-                      <Link
-                        href="https://docs.github.com/en/copilot/github-copilot-in-the-cli"
-                        target="_blank"
-                        style={{ fontSize: 12 }}
-                      >
-                        Install
-                      </Link>
-                    </span>
-                  )}
-                </div>
-                <div className={styles.cliRow}>
-                  <span className={styles.cliName}>Claude CLI</span>
-                  {llmAvailability === null ? (
-                    <Spinner size="extra-tiny" />
-                  ) : llmAvailability.claude ? (
-                    <span className={styles.statusAvailable}>
-                      <CheckmarkCircle24Filled style={{ fontSize: 16 }} />
-                      Available
-                    </span>
-                  ) : (
-                    <span className={styles.statusMissing}>
-                      <DismissCircle24Filled style={{ fontSize: 16, color: '#c33' }} />
-                      <Link
-                        href="https://docs.anthropic.com/en/docs/claude-cli"
-                        target="_blank"
-                        style={{ fontSize: 12 }}
-                      >
-                        Install
-                      </Link>
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <Button
-                appearance="subtle"
-                size="small"
-                onClick={() => {
-                  const api = (window as any).pqWorkbench;
-                  if (api?.auth?.openCliAuth) api.auth.openCliAuth();
-                }}
-                style={{ alignSelf: 'flex-start' }}
-              >
-                Set Up GitHub Auth →
-              </Button>
-
               <span
                 className={styles.badge}
                 style={{
@@ -317,6 +341,69 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
               >
                 Optional
               </span>
+              <h3 className={styles.cardTitle}>
+                <Sparkle24Filled
+                  style={{
+                    verticalAlign: 'middle',
+                    marginRight: 6,
+                    color: tokens.colorPaletteLightTealForeground2,
+                  }}
+                />
+                AI Assist
+              </h3>
+              <p className={styles.cardDesc}>
+                Generate M code from natural language using a local AI CLI.
+              </p>
+
+              <div style={{ flex: 1, minHeight: 4 }} />
+
+              <div>
+                {PROVIDERS.map(({ id, name, installUrl, signInCmd }) => {
+                  const status = llmAvailability?.[id];
+                  const needsSignIn =
+                    status?.cliInstalled && status.auth !== 'authenticated';
+                  return (
+                    <div key={id}>
+                      <div className={styles.cliRow}>
+                        <span className={styles.cliName}>{name}</span>
+                        {!status ? (
+                          <Spinner size="extra-tiny" />
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                            <ProviderStatusIcons
+                              status={status}
+                              size="small"
+                              providerLabel={name}
+                            />
+                            {!status.cliInstalled && (
+                              <Link href={installUrl} target="_blank" style={{ fontSize: 12 }}>
+                                Install
+                              </Link>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      {needsSignIn && (
+                        <div className={styles.signInHint}>
+                          <span className={styles.signInCmd}>{signInCmd}</span>
+                          <Tooltip
+                            content={copiedCmd === signInCmd ? 'Copied!' : 'Copy command'}
+                            relationship="label"
+                          >
+                            <Button
+                              appearance="subtle"
+                              size="small"
+                              icon={<Copy16Regular />}
+                              aria-label={`Copy sign-in command for ${name}`}
+                              onClick={() => handleCopy(signInCmd)}
+                            />
+                          </Tooltip>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </DialogContent>
         </DialogBody>

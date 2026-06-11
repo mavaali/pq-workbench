@@ -66,6 +66,7 @@
   },
   "dependencies": {
     "@azure/msal-node": "^5.2.3",
+    "@fabric-msft/svg-icons": "^8.0.1",
     "@fluentui/react-components": "^9.56.0",
     "@fluentui/react-icons": "^2.0.268",
     "@microsoft/powerquery-language-services": "^1.0.0",

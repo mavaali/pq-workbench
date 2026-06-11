@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Combobox, Option, Label } from '@fluentui/react-components';
+import { Combobox, Option } from '@fluentui/react-components';
+import GroupWorkspace24NonItem from '@fabric-msft/svg-icons/GroupWorkspace24NonItem';
 import type { FabricWorkspace } from '../types/api';
 
 interface Props {
@@ -27,10 +28,13 @@ export function WorkspacePicker({ workspaces, value, onChange }: Props) {
   const selectedName = workspaces.find((w) => w.id === value)?.displayName ?? '';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <Label size="small">Workspace</Label>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <GroupWorkspace24NonItem
+        style={{ width: 18, height: 18, flexShrink: 0 }}
+        aria-label="Workspace"
+      />
       <Combobox
-        placeholder="Search workspaces…"
+        placeholder="Workspace…"
         size="small"
         value={query || selectedName}
         selectedOptions={value ? [value] : []}
@@ -42,8 +46,9 @@ export function WorkspacePicker({ workspaces, value, onChange }: Props) {
           }
         }}
         onBlur={() => setQuery('')}
-        style={{ minWidth: 220 }}
+        style={{ minWidth: 200 }}
         freeform
+        aria-label="Workspace"
       >
         {filtered.map((ws) => (
           <Option key={ws.id} value={ws.id} text={ws.displayName}>

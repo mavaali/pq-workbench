@@ -2,34 +2,35 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Textarea,
   Button,
-  Dialog,
-  DialogSurface,
-  DialogBody,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  DialogTrigger,
   RadioGroup,
   Radio,
-  Badge,
-  Tooltip,
+  tokens,
 } from '@fluentui/react-components';
-import { SparkleRegular, CheckmarkCircleRegular, DismissCircleRegular } from '@fluentui/react-icons';
-import type { LlmProvider, LlmAvailability } from '../types/api';
+import {
+  SparkleRegular,
+} from '@fluentui/react-icons';
+import type { LlmProvider, LlmAvailability, LlmProviderStatus } from '../types/api';
+import { ProviderStatusIcons } from './ProviderStatusIcons';
 
 interface Props {
   onGenerate: (prompt: string, provider: LlmProvider, context?: string[]) => Promise<void>;
   checkAvailability: () => Promise<LlmAvailability>;
 }
 
+const PROVIDER_LABELS: Record<LlmProvider, string> = {
+  'gh-copilot': 'GitHub Copilot',
+  claude: 'Claude',
+};
+
+const EMPTY_STATUS: LlmProviderStatus = { cliInstalled: false, auth: 'unauthenticated' };
+
 export function NLInput({ onGenerate, checkAvailability }: Props) {
   const [prompt, setPrompt] = useState('');
   const [provider, setProvider] = useState<LlmProvider>('gh-copilot');
   const [availability, setAvailability] = useState<LlmAvailability>({
-    'gh-copilot': false,
-    claude: false,
+    'gh-copilot': EMPTY_STATUS,
+    claude: EMPTY_STATUS,
   });
-  const [showPreview, setShowPreview] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
@@ -37,7 +38,6 @@ export function NLInput({ onGenerate, checkAvailability }: Props) {
   }, [checkAvailability]);
 
   const handleSubmit = useCallback(async () => {
-    setShowPreview(false);
     setGenerating(true);
     try {
       await onGenerate(prompt, provider);
@@ -46,29 +46,20 @@ export function NLInput({ onGenerate, checkAvailability }: Props) {
     }
   }, [prompt, provider, onGenerate]);
 
-  const StatusDot = ({ available }: { available: boolean }) => (
-    <Tooltip content={available ? 'Available' : 'Not found'} relationship="label">
-      {available ? (
-        <CheckmarkCircleRegular style={{ color: '#0a7', fontSize: 16 }} />
-      ) : (
-        <DismissCircleRegular style={{ color: '#c33', fontSize: 16 }} />
-      )}
-    </Tooltip>
-  );
-
   return (
     <div
       style={{
         padding: '8px 16px',
-        borderTop: '1px solid #e0e0e0',
+        borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+        background: tokens.colorNeutralBackground2,
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
         flexShrink: 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-        <SparkleRegular style={{ fontSize: 18 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, flexWrap: 'wrap' }}>
+        <SparkleRegular style={{ fontSize: 18, color: tokens.colorBrandForeground1 }} />
         <strong>AI Assist</strong>
         <RadioGroup
           layout="horizontal"
@@ -76,22 +67,21 @@ export function NLInput({ onGenerate, checkAvailability }: Props) {
           onChange={(_, data) => setProvider(data.value as LlmProvider)}
           style={{ marginLeft: 8 }}
         >
-          <Radio
-            value="gh-copilot"
-            label={
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                GitHub Copilot <StatusDot available={availability['gh-copilot']} />
-              </span>
-            }
-          />
-          <Radio
-            value="claude"
-            label={
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                Claude <StatusDot available={availability.claude} />
-              </span>
-            }
-          />
+          {(Object.keys(PROVIDER_LABELS) as LlmProvider[]).map((p) => (
+            <Radio
+              key={p}
+              value={p}
+              label={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {PROVIDER_LABELS[p]}
+                  <ProviderStatusIcons
+                    status={availability[p]}
+                    providerLabel={PROVIDER_LABELS[p]}
+                  />
+                </span>
+              }
+            />
+          ))}
         </RadioGroup>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -103,49 +93,14 @@ export function NLInput({ onGenerate, checkAvailability }: Props) {
           resize="vertical"
           size="small"
         />
-        <Dialog open={showPreview} onOpenChange={(_, data) => setShowPreview(data.open)}>
-          <DialogTrigger disableButtonEnhancement>
-            <Button
-              appearance="primary"
-              icon={<SparkleRegular />}
-              disabled={!prompt.trim() || generating}
-              onClick={() => setShowPreview(true)}
-            >
-              {generating ? 'Generating…' : 'Generate M'}
-            </Button>
-          </DialogTrigger>
-          <DialogSurface>
-            <DialogBody>
-              <DialogTitle>Context Preview</DialogTitle>
-              <DialogContent>
-                <p style={{ marginBottom: 8 }}>
-                  The following will be sent to <strong>{provider}</strong>:
-                </p>
-                <pre
-                  style={{
-                    background: '#f5f5f5',
-                    padding: 12,
-                    borderRadius: 4,
-                    fontSize: 13,
-                    whiteSpace: 'pre-wrap',
-                    maxHeight: 300,
-                    overflow: 'auto',
-                  }}
-                >
-                  {`Prompt: ${prompt}\n\nProvider: ${provider}\nContext: (current workspace tables)`}
-                </pre>
-              </DialogContent>
-              <DialogActions>
-                <DialogTrigger disableButtonEnhancement>
-                  <Button appearance="secondary">Cancel</Button>
-                </DialogTrigger>
-                <Button appearance="primary" onClick={handleSubmit}>
-                  Approve &amp; Send
-                </Button>
-              </DialogActions>
-            </DialogBody>
-          </DialogSurface>
-        </Dialog>
+        <Button
+          appearance="primary"
+          icon={<SparkleRegular />}
+          disabled={!prompt.trim() || generating}
+          onClick={handleSubmit}
+        >
+          {generating ? 'Generating…' : 'Generate M'}
+        </Button>
       </div>
     </div>
   );

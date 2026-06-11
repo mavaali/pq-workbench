@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
     listWorkspaces: () => invoke(IPC_CHANNELS.FABRIC_LIST_WORKSPACES),
     listDataflows: (workspaceId: string) =>
       invoke(IPC_CHANNELS.FABRIC_LIST_DATAFLOWS, workspaceId),
+    checkEligibility: () => invoke(IPC_CHANNELS.FABRIC_CHECK_ELIGIBILITY),
     createDataflow: (workspaceId: string, name: string) =>
       invoke(IPC_CHANNELS.FABRIC_CREATE_DATAFLOW, workspaceId, name),
     executeQuery: (

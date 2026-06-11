@@ -19,6 +19,13 @@ export interface FabricDataflow {
   description?: string;
 }
 
+export interface FabricEligibility {
+  eligible: boolean;
+  capacityCount: number;
+  fabricCapableCount: number;
+  reason?: string;
+}
+
 export interface QueryResult {
   columns: ColumnSchema[];
   rows: Record<string, unknown>[];
@@ -52,10 +59,14 @@ export interface LlmResult {
   rawOutput: string;
 }
 
-export interface LlmAvailability {
-  'gh-copilot': boolean;
-  claude: boolean;
+export type AuthState = 'authenticated' | 'unauthenticated' | 'unknown';
+
+export interface LlmProviderStatus {
+  cliInstalled: boolean;
+  auth: AuthState;
 }
+
+export type LlmAvailability = Record<LlmProvider, LlmProviderStatus>;
 
 // ── IPC Bridge ──
 export interface PqWorkbenchApi {
@@ -67,6 +78,7 @@ export interface PqWorkbenchApi {
   fabric: {
     listWorkspaces: () => Promise<FabricWorkspace[]>;
     listDataflows: (workspaceId: string) => Promise<FabricDataflow[]>;
+    checkEligibility: () => Promise<FabricEligibility>;
     createDataflow: (workspaceId: string, name: string) => Promise<FabricDataflow>;
     executeQuery: (
       workspaceId: string,

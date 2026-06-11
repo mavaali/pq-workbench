@@ -10,6 +10,8 @@ import {
   TabList,
   Tab,
   MessageBar,
+  MessageBarActions,
+  Link,
   MessageBarTitle,
   MessageBarBody,
   Spinner,
@@ -19,6 +21,7 @@ import {
   WeatherMoon24Regular,
   WeatherSunny24Regular,
 } from '@fluentui/react-icons';
+import Fabric28Color from '@fabric-msft/svg-icons/Fabric28Color';
 import { Allotment } from 'allotment';
 import 'allotment/dist/style.css';
 import { AuthButton } from './components/AuthButton';
@@ -43,6 +46,7 @@ export function App() {
     `let\n    Source = Table.FromRecords({\n        [ID=1, Name="Hello"],\n        [ID=2, Name="World"]\n    })\nin\n    Source`
   );
   const [showNL, setShowNL] = useState(false);
+  const [eligibilityDismissed, setEligibilityDismissed] = useState(false);
   const [activeQueryName, setActiveQueryName] = useState<string | undefined>();
   const [activeQueryDoc, setActiveQueryDoc] = useState<string | undefined>();
   const [llmAvailability, setLlmAvailability] = useState<LlmAvailability | null>(null);
@@ -71,6 +75,7 @@ export function App() {
     queryResult,
     loading,
     error,
+    fabricEligibility,
     signIn,
     signOut,
     fetchWorkspaces,
@@ -252,14 +257,33 @@ export function App() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
+            gap: 12,
             padding: '8px 16px',
-            borderBottom: `1px solid ${dark ? '#333' : '#e0e0e0'}`,
-            background: dark ? '#1a1a1a' : '#fafafa',
+            borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+            background: tokens.colorNeutralBackground2,
             flexShrink: 0,
           }}
         >
-          <span style={{ fontWeight: 700, fontSize: 16, marginRight: 12 }}>⚡ PQ Workbench</span>
+          {/* Logo lockup */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              paddingRight: 4,
+            }}
+          >
+            <Fabric28Color style={{ flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+              <span style={{ fontWeight: 600, fontSize: 14, letterSpacing: '-0.01em' }}>
+                Power Query Workbench
+              </span>
+              <span style={{ fontSize: 11, color: tokens.colorNeutralForeground3 }}>
+                for Microsoft Fabric
+              </span>
+            </div>
+          </div>
+          <ToolbarDivider />
           <AuthButton
             authStatus={authStatus}
             onSignIn={signIn}
@@ -284,12 +308,45 @@ export function App() {
             onChange={(_, data) => setShowNL(data.checked)}
             label="AI Assist"
           />
+          <ToolbarDivider />
           <ToolbarButton
             icon={dark ? <WeatherSunny24Regular /> : <WeatherMoon24Regular />}
             onClick={() => setDark(!dark)}
             aria-label="Toggle theme"
           />
         </div>
+
+        {/* Fabric eligibility banner */}
+        {fabricEligibility &&
+          !fabricEligibility.eligible &&
+          fabricEligibility.capacityCount >= 0 &&
+          !eligibilityDismissed && (
+            <MessageBar intent="warning" style={{ flexShrink: 0 }}>
+              <MessageBarBody>
+                <MessageBarTitle>No Fabric capacity detected.</MessageBarTitle>
+                {' '}You're signed in, but none of your workspaces are on a Fabric-eligible
+                capacity (F, P, or FT SKU). Executing queries will fail.{' '}
+                <Link
+                  href="https://learn.microsoft.com/fabric/get-started/fabric-trial"
+                  target="_blank"
+                  inline
+                >
+                  Start a free Fabric trial →
+                </Link>
+              </MessageBarBody>
+              <MessageBarActions
+                containerAction={
+                  <ToolbarButton
+                    appearance="subtle"
+                    onClick={() => setEligibilityDismissed(true)}
+                    aria-label="Dismiss"
+                  >
+                    Dismiss
+                  </ToolbarButton>
+                }
+              />
+            </MessageBar>
+          )}
 
         {/* Error bar */}
         {error && (
@@ -361,7 +418,20 @@ export function App() {
                   <Tab value="info">Query Info</Tab>
                 </TabList>
                 <div style={{ flex: 1, overflow: 'auto', padding: '8px 16px' }}>
-                  {loading && <Spinner size="small" label="Executing…" />}
+                  {loading && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%',
+                        gap: 12,
+                      }}
+                    >
+                      <Spinner size="medium" label="Executing query…" labelPosition="below" />
+                    </div>
+                  )}
                   {!loading && selectedTab === 'data' && <ResultsPanel result={queryResult} suggestedName={activeQueryName || 'query-results'} />}
                   {!loading && selectedTab === 'schema' && <SchemaPanel result={queryResult} />}
                   {!loading && selectedTab === 'info' && <QueryInfoPanel result={queryResult} />}

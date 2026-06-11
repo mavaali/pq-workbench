@@ -6,6 +6,7 @@ export const IPC_CHANNELS = {
   OPEN_CLI_AUTH: 'open-cli-auth',
   FABRIC_LIST_WORKSPACES: 'fabric:list-workspaces',
   FABRIC_LIST_DATAFLOWS: 'fabric:list-dataflows',
+  FABRIC_CHECK_ELIGIBILITY: 'fabric:check-eligibility',
   FABRIC_CREATE_DATAFLOW: 'fabric:create-dataflow',
   FABRIC_EXECUTE_QUERY: 'fabric:execute-query',
   FABRIC_GET_QUERIES: 'fabric:get-queries',

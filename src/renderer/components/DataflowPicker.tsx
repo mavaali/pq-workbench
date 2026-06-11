@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Combobox, Option, Label } from '@fluentui/react-components';
+import { Combobox, Option, tokens } from '@fluentui/react-components';
+import { AddRegular } from '@fluentui/react-icons';
+import DataflowGen224Item from '@fabric-msft/svg-icons/DataflowGen224Item';
 import type { FabricDataflow } from '../types/api';
 
 interface Props {
@@ -28,10 +30,13 @@ export function DataflowPicker({ dataflows, value, onChange, onCreateNew }: Prop
   const selectedName = dataflows.find((d) => d.id === value)?.displayName ?? '';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <Label size="small">Dataflow</Label>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <DataflowGen224Item
+        style={{ width: 18, height: 18, flexShrink: 0 }}
+        aria-label="Dataflow"
+      />
       <Combobox
-        placeholder="Search dataflows…"
+        placeholder="Dataflow…"
         size="small"
         value={query || selectedName}
         selectedOptions={value ? [value] : []}
@@ -46,11 +51,23 @@ export function DataflowPicker({ dataflows, value, onChange, onCreateNew }: Prop
           }
         }}
         onBlur={() => setQuery('')}
-        style={{ minWidth: 220 }}
+        style={{ minWidth: 200 }}
         freeform
+        aria-label="Dataflow"
       >
-        <Option key="__create__" value="__create__" text="Create New Scratch">
-          ➕ Create New Scratch
+        <Option key="__create__" value="__create__" text="Create new scratch dataflow">
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              color: tokens.colorBrandForeground1,
+              fontWeight: 500,
+            }}
+          >
+            <AddRegular />
+            Create new scratch dataflow
+          </span>
         </Option>
         {filtered.map((df) => (
           <Option key={df.id} value={df.id} text={df.displayName}>

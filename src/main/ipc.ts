@@ -40,6 +40,10 @@ export function registerIpcHandlers(): void {
   });
 
   // Fabric
+  ipcMain.handle(IPC_CHANNELS.FABRIC_CHECK_ELIGIBILITY, async () => {
+    return fabric.checkFabricEligibility();
+  });
+
   ipcMain.handle(
     IPC_CHANNELS.FABRIC_LIST_WORKSPACES,
     async () => {
