@@ -4,7 +4,6 @@ import {
   webLightTheme,
   webDarkTheme,
   tokens,
-  Toolbar,
   ToolbarButton,
   ToolbarDivider,
   TabList,
@@ -36,19 +35,18 @@ import { QueryInfoPanel } from './components/QueryInfoPanel';
 import { DangerousFunctionBanner } from './components/DangerousFunctionBanner';
 import { QueryBrowser } from './components/QueryBrowser';
 import { BindConnectionsModal } from './components/BindConnectionsModal';
+import { EditorTabs } from './components/EditorTabs';
 import { useFabric } from './hooks/useFabric';
+import { useEditorTabs } from './hooks/useEditorTabs';
 import type { LlmAvailability } from './types/api';
+
+const isMacLike = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 export function App() {
   const [dark, setDark] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<string>('data');
-  const [mCode, setMCode] = useState(
-    `let\n    Source = Table.FromRecords({\n        [ID=1, Name="Hello"],\n        [ID=2, Name="World"]\n    })\nin\n    Source`
-  );
+  const [resultsTab, setResultsTab] = useState<string>('data');
   const [showNL, setShowNL] = useState(false);
   const [eligibilityDismissed, setEligibilityDismissed] = useState(false);
-  const [activeQueryName, setActiveQueryName] = useState<string | undefined>();
-  const [activeQueryDoc, setActiveQueryDoc] = useState<string | undefined>();
   const [llmAvailability, setLlmAvailability] = useState<LlmAvailability | null>(null);
 
   // Connection-binding modal state
@@ -57,22 +55,20 @@ export function App() {
   const [bindBound, setBindBound] = useState<any[]>([]);
   const [binding, setBinding] = useState(false);
   const [bindError, setBindError] = useState<string | null>(null);
-  // Pending execute args, captured when analyze finds missing bindings
   const [pendingExec, setPendingExec] = useState<{
     workspaceId: string;
     dataflowId: string;
     expression: string;
     queryName?: string;
     originalDocument?: string;
+    tabId: string;
   } | null>(null);
 
-  const fabric = useFabric();
   const {
     authStatus,
     workspaces,
     dataflows,
     queries,
-    queryResult,
     loading,
     error,
     fabricEligibility,
@@ -86,93 +82,181 @@ export function App() {
     generateMCode,
     checkLlmAvailability,
     setError,
-  } = fabric;
+  } = useFabric();
+
+  const {
+    tabs,
+    activeTab,
+    activeTabId,
+    setActiveTabId,
+    updateTab,
+    updateActiveTab,
+    newTab,
+    closeTab,
+    selectNextTab,
+    selectPrevTab,
+  } = useEditorTabs();
+
+  // Hydrate initial tab's workspace/dataflow from legacy localStorage if blank
+  useEffect(() => {
+    if (activeTab && !activeTab.workspaceId) {
+      const ws = localStorage.getItem('pqwb:lastWorkspace') || '';
+      const df = localStorage.getItem('pqwb:lastDataflow') || '';
+      if (ws) updateActiveTab({ workspaceId: ws, dataflowId: df });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Backfill workspaceName/dataflowName when lists load (for legacy/persisted tabs)
+  useEffect(() => {
+    if (!activeTab) return;
+    let patch: Partial<typeof activeTab> = {};
+    if (activeTab.workspaceId && !activeTab.workspaceName) {
+      const w = workspaces.find((x) => x.id === activeTab.workspaceId);
+      if (w) patch.workspaceName = w.displayName;
+    }
+    if (activeTab.dataflowId && !activeTab.dataflowName) {
+      const d = dataflows.find((x) => x.id === activeTab.dataflowId);
+      if (d) patch.dataflowName = d.displayName;
+    }
+    if (Object.keys(patch).length > 0) updateActiveTab(patch);
+  }, [workspaces, dataflows, activeTab, updateActiveTab]);
 
   // Check LLM availability on mount for the login modal
   useEffect(() => {
     checkLlmAvailability().then(setLlmAvailability);
   }, [checkLlmAvailability]);
 
-  const [selectedWorkspace, setSelectedWorkspace] = useState<string>(
-    () => localStorage.getItem('pqwb:lastWorkspace') || ''
-  );
-  const [selectedDataflow, setSelectedDataflow] = useState<string>(
-    () => localStorage.getItem('pqwb:lastDataflow') || ''
-  );
-
-  // Restore last-used workspace on auth
+  // When auth comes online, ensure dataflows/queries for active tab are loaded
   useEffect(() => {
-    if (authStatus.signedIn && selectedWorkspace) {
-      fetchDataflows(selectedWorkspace);
-      if (selectedDataflow) {
-        fetchQueries(selectedWorkspace, selectedDataflow);
+    if (authStatus.signedIn && activeTab?.workspaceId) {
+      fetchDataflows(activeTab.workspaceId);
+      if (activeTab.dataflowId) {
+        fetchQueries(activeTab.workspaceId, activeTab.dataflowId);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus.signedIn]);
+
+  // When active tab changes, refetch dataflows + queries to match
+  useEffect(() => {
+    if (!authStatus.signedIn || !activeTab) return;
+    if (activeTab.workspaceId) {
+      fetchDataflows(activeTab.workspaceId);
+      if (activeTab.dataflowId) {
+        fetchQueries(activeTab.workspaceId, activeTab.dataflowId);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTabId, activeTab?.workspaceId, activeTab?.dataflowId]);
+
+  // Keyboard shortcuts: Ctrl/Cmd+T (new), Ctrl/Cmd+W (close), Ctrl+Tab / Ctrl+Shift+Tab
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = isMacLike ? e.metaKey : e.ctrlKey;
+      if (!mod) return;
+      const k = e.key.toLowerCase();
+      if (k === 't') {
+        e.preventDefault();
+        newTab();
+      } else if (k === 'w') {
+        e.preventDefault();
+        if (activeTabId) closeTab(activeTabId);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) selectPrevTab();
+        else selectNextTab();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeTabId, newTab, closeTab, selectNextTab, selectPrevTab]);
 
   const handleWorkspaceChange = useCallback(
     (wsId: string) => {
-      setSelectedWorkspace(wsId);
-      setSelectedDataflow('');
+      const wsName = workspaces.find((w) => w.id === wsId)?.displayName;
+      updateActiveTab({
+        workspaceId: wsId,
+        workspaceName: wsName,
+        dataflowId: '',
+        dataflowName: undefined,
+      });
       localStorage.setItem('pqwb:lastWorkspace', wsId);
       localStorage.removeItem('pqwb:lastDataflow');
       if (wsId) fetchDataflows(wsId);
     },
-    [fetchDataflows]
+    [fetchDataflows, updateActiveTab, workspaces]
   );
 
   const handleDataflowChange = useCallback(
     (dfId: string) => {
-      setSelectedDataflow(dfId);
+      const wsId = activeTab?.workspaceId ?? '';
+      const dfName = dataflows.find((d) => d.id === dfId)?.displayName;
+      updateActiveTab({ dataflowId: dfId, dataflowName: dfName });
       localStorage.setItem('pqwb:lastDataflow', dfId);
-      if (dfId && selectedWorkspace) {
-        fetchQueries(selectedWorkspace, dfId);
+      if (dfId && wsId) {
+        fetchQueries(wsId, dfId);
       }
     },
-    [selectedWorkspace, fetchQueries]
+    [activeTab?.workspaceId, fetchQueries, updateActiveTab, dataflows]
   );
 
-  const handleRun = useCallback(async () => {
-    if (!selectedWorkspace || !selectedDataflow) {
-      setError('Select a workspace and dataflow first');
-      return;
-    }
-
-    // Analyze connection bindings before executing. If any required source isn't bound,
-    // open the modal to let the user pick connections, bind, then execute.
-    const api = (window as any).pqWorkbench;
-    if (api?.connections?.analyze) {
-      try {
-        const analysis = await api.connections.analyze(
-          selectedWorkspace,
-          selectedDataflow,
-          activeQueryDoc || mCode
-        );
-        if (!analysis.ready) {
-          setBindMissing(analysis.missing);
-          setBindBound(analysis.bound);
-          setBindError(null);
-          setPendingExec({
-            workspaceId: selectedWorkspace,
-            dataflowId: selectedDataflow,
-            expression: mCode,
-            queryName: activeQueryName,
-            originalDocument: activeQueryDoc,
-          });
-          setBindOpen(true);
-          return;
-        }
-      } catch (e: unknown) {
-        // Don't block execution on analyze failure — fall through to existing behavior.
-        // (The user will still see the existing HTTP 500 error if connections really are missing.)
-        const msg = e instanceof Error ? e.message : String(e);
-        console.warn('[App] analyzeForBinding failed, proceeding with execute:', msg);
-        setError(`Connection-binding pre-check failed (proceeding with execute anyway): ${msg}`);
+  const runForTab = useCallback(
+    async (tabId: string) => {
+      const tab = tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+      if (!tab.workspaceId || !tab.dataflowId) {
+        setError('Select a workspace and dataflow first');
+        return;
       }
-    }
 
-    executeQuery(selectedWorkspace, selectedDataflow, mCode, undefined, activeQueryName, activeQueryDoc);
-  }, [selectedWorkspace, selectedDataflow, mCode, executeQuery, showNL, setError, activeQueryName, activeQueryDoc]);
+      const api = (window as any).pqWorkbench;
+      if (api?.connections?.analyze) {
+        try {
+          const analysis = await api.connections.analyze(
+            tab.workspaceId,
+            tab.dataflowId,
+            tab.activeQueryDoc || tab.mCode
+          );
+          if (!analysis.ready) {
+            setBindMissing(analysis.missing);
+            setBindBound(analysis.bound);
+            setBindError(null);
+            setPendingExec({
+              workspaceId: tab.workspaceId,
+              dataflowId: tab.dataflowId,
+              expression: tab.mCode,
+              queryName: tab.activeQueryName,
+              originalDocument: tab.activeQueryDoc,
+              tabId: tab.id,
+            });
+            setBindOpen(true);
+            return;
+          }
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.warn('[App] analyzeForBinding failed, proceeding with execute:', msg);
+          setError(`Connection-binding pre-check failed (proceeding with execute anyway): ${msg}`);
+        }
+      }
+
+      updateTab(tab.id, { loading: true });
+      const result = await executeQuery(
+        tab.workspaceId,
+        tab.dataflowId,
+        tab.mCode,
+        undefined,
+        tab.activeQueryName,
+        tab.activeQueryDoc
+      );
+      updateTab(tab.id, { loading: false, queryResult: result ?? tab.queryResult });
+    },
+    [tabs, executeQuery, updateTab, setError]
+  );
+
+  const handleRun = useCallback(() => {
+    if (activeTabId) runForTab(activeTabId);
+  }, [activeTabId, runForTab]);
 
   const handleBindConfirm = useCallback(
     async (connectionIds: string[]) => {
@@ -181,15 +265,14 @@ export function App() {
       setBinding(true);
       setBindError(null);
       try {
-        const result = await api.connections.bind(
+        await api.connections.bind(
           pendingExec.workspaceId,
           pendingExec.dataflowId,
           connectionIds
         );
-        console.log('[App] bind result:', result);
         setBindOpen(false);
-        // Now execute against the just-bound dataflow
-        await executeQuery(
+        updateTab(pendingExec.tabId, { loading: true });
+        const result = await executeQuery(
           pendingExec.workspaceId,
           pendingExec.dataflowId,
           pendingExec.expression,
@@ -197,6 +280,7 @@ export function App() {
           pendingExec.queryName,
           pendingExec.originalDocument
         );
+        updateTab(pendingExec.tabId, { loading: false, queryResult: result ?? null });
         setPendingExec(null);
       } catch (e: unknown) {
         setBindError(e instanceof Error ? e.message : String(e));
@@ -204,7 +288,7 @@ export function App() {
         setBinding(false);
       }
     },
-    [pendingExec, executeQuery]
+    [pendingExec, executeQuery, updateTab]
   );
 
   const handleBindCancel = useCallback(() => {
@@ -216,31 +300,37 @@ export function App() {
   const handleGenerate = useCallback(
     async (prompt: string, provider: 'gh-copilot' | 'claude', context?: string[]) => {
       const result = await generateMCode(provider, prompt, context);
-      console.log('[App] LLM result mCode length:', result?.mCode?.length);
       if (result?.mCode) {
-        console.log('[App] Setting mCode:', result.mCode.substring(0, 50));
-        setMCode(result.mCode);
-        // Force a re-render confirmation
-        setTimeout(() => {
-          console.log('[App] mCode state after set (via timeout)');
-        }, 100);
+        updateActiveTab({
+          mCode: result.mCode,
+          activeQueryName: undefined,
+          activeQueryDoc: undefined,
+        });
       } else {
         setError('AI Assist returned no M code. Check the terminal for details.');
       }
     },
-    [generateMCode, setError]
+    [generateMCode, setError, updateActiveTab]
   );
+
+  const handleNewTab = useCallback(() => {
+    newTab({
+      workspaceId: activeTab?.workspaceId ?? '',
+      workspaceName: activeTab?.workspaceName,
+      dataflowId: '',
+    });
+  }, [newTab, activeTab?.workspaceId, activeTab?.workspaceName]);
+
+  const tabLoading = !!activeTab?.loading || loading;
 
   return (
     <FluentProvider theme={dark ? webDarkTheme : webLightTheme} style={{ height: '100%' }}>
-      {/* Login modal — blocks interaction until Fabric auth succeeds */}
       <LoginModal
         authStatus={authStatus}
         onSignIn={signIn}
         llmAvailability={llmAvailability}
       />
 
-      {/* Connection-binding modal — opened by handleRun when sources are unbound */}
       <BindConnectionsModal
         open={bindOpen}
         missing={bindMissing}
@@ -264,15 +354,7 @@ export function App() {
             flexShrink: 0,
           }}
         >
-          {/* Logo lockup */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              paddingRight: 4,
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 4 }}>
             <Fabric28Color style={{ flexShrink: 0 }} />
             <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
               <span style={{ fontWeight: 600, fontSize: 14, letterSpacing: '-0.01em' }}>
@@ -293,14 +375,16 @@ export function App() {
           <ToolbarDivider />
           <WorkspacePicker
             workspaces={workspaces}
-            value={selectedWorkspace}
+            value={activeTab?.workspaceId ?? ''}
             onChange={handleWorkspaceChange}
           />
           <DataflowPicker
             dataflows={dataflows}
-            value={selectedDataflow}
+            value={activeTab?.dataflowId ?? ''}
             onChange={handleDataflowChange}
-            onCreateNew={() => selectedWorkspace && createDataflow(selectedWorkspace)}
+            onCreateNew={() =>
+              activeTab?.workspaceId && createDataflow(activeTab.workspaceId)
+            }
           />
           <div style={{ flex: 1 }} />
           <Switch
@@ -348,7 +432,6 @@ export function App() {
             </MessageBar>
           )}
 
-        {/* Error bar */}
         {error && (
           <MessageBar intent="error" style={{ flexShrink: 0 }}>
             <MessageBarBody>
@@ -358,7 +441,6 @@ export function App() {
           </MessageBar>
         )}
 
-        {/* AI Assist input — right below toolbar */}
         {showNL && (
           <NLInput
             onGenerate={handleGenerate}
@@ -366,41 +448,67 @@ export function App() {
           />
         )}
 
-        {/* Dangerous function warning */}
-        <DangerousFunctionBanner mCode={mCode} />
+        {/* Editor tabs */}
+        <EditorTabs
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onSelect={setActiveTabId}
+          onClose={closeTab}
+          onNew={handleNewTab}
+        />
 
-        {/* Main content — resizable split between editor and results */}
+        <DangerousFunctionBanner mCode={activeTab?.mCode ?? ''} />
+
+        {/* Main content */}
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <Allotment vertical defaultSizes={[300, 200]}>
             <Allotment.Pane minSize={150}>
-              {selectedDataflow ? (
+              {activeTab?.dataflowId ? (
                 <Allotment defaultSizes={[200, 600]}>
                   <Allotment.Pane minSize={120} preferredSize={200}>
                     <QueryBrowser
                       queries={queries}
                       onSelectQuery={(q) => {
-                        setMCode(q.expression);
-                        setActiveQueryName(q.name);
-                        setActiveQueryDoc((q as any).originalDocument);
+                        newTab({
+                          workspaceId: activeTab?.workspaceId ?? '',
+                          workspaceName: activeTab?.workspaceName,
+                          dataflowId: activeTab?.dataflowId ?? '',
+                          dataflowName: activeTab?.dataflowName,
+                          mCode: q.expression,
+                          activeQueryName: q.name,
+                          activeQueryDoc: (q as any).originalDocument,
+                        });
                       }}
                     />
                   </Allotment.Pane>
                   <Allotment.Pane>
                     <QueryEditor
-                      value={mCode}
-                      onChange={(v) => { setMCode(v); setActiveQueryName(undefined); setActiveQueryDoc(undefined); }}
+                      value={activeTab?.mCode ?? ''}
+                      onChange={(v) =>
+                        updateActiveTab({
+                          mCode: v,
+                          activeQueryName: undefined,
+                          activeQueryDoc: undefined,
+                        })
+                      }
                       onRun={handleRun}
-                      loading={loading}
+                      loading={tabLoading}
                       dark={dark}
                     />
                   </Allotment.Pane>
                 </Allotment>
               ) : (
                 <QueryEditor
-                  value={mCode}
-                  onChange={(v) => { setMCode(v); setActiveQueryName(undefined); setActiveQueryDoc(undefined); }}
+                  value={activeTab?.mCode ?? ''}
+                  onChange={(v) =>
+                    updateActiveTab({
+                      mCode: v,
+                      activeQueryName: undefined,
+                      activeQueryDoc: undefined,
+                    })
+                  }
                   onRun={handleRun}
-                  loading={loading}
+                  loading={tabLoading}
                   dark={dark}
                 />
               )}
@@ -408,8 +516,8 @@ export function App() {
             <Allotment.Pane minSize={100}>
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <TabList
-                  selectedValue={selectedTab}
-                  onTabSelect={(_, data) => setSelectedTab(data.value as string)}
+                  selectedValue={resultsTab}
+                  onTabSelect={(_, data) => setResultsTab(data.value as string)}
                   size="small"
                   style={{ padding: '0 16px', flexShrink: 0 }}
                 >
@@ -418,7 +526,7 @@ export function App() {
                   <Tab value="info">Query Info</Tab>
                 </TabList>
                 <div style={{ flex: 1, overflow: 'auto', padding: '8px 16px' }}>
-                  {loading && (
+                  {tabLoading && (
                     <div
                       style={{
                         display: 'flex',
@@ -432,9 +540,18 @@ export function App() {
                       <Spinner size="medium" label="Executing query…" labelPosition="below" />
                     </div>
                   )}
-                  {!loading && selectedTab === 'data' && <ResultsPanel result={queryResult} suggestedName={activeQueryName || 'query-results'} />}
-                  {!loading && selectedTab === 'schema' && <SchemaPanel result={queryResult} />}
-                  {!loading && selectedTab === 'info' && <QueryInfoPanel result={queryResult} />}
+                  {!tabLoading && resultsTab === 'data' && (
+                    <ResultsPanel
+                      result={activeTab?.queryResult ?? null}
+                      suggestedName={activeTab?.activeQueryName || 'query-results'}
+                    />
+                  )}
+                  {!tabLoading && resultsTab === 'schema' && (
+                    <SchemaPanel result={activeTab?.queryResult ?? null} />
+                  )}
+                  {!tabLoading && resultsTab === 'info' && (
+                    <QueryInfoPanel result={activeTab?.queryResult ?? null} />
+                  )}
                 </div>
               </div>
             </Allotment.Pane>
