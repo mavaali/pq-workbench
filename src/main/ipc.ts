@@ -3,6 +3,7 @@ import { execFile } from 'child_process';
 import { IPC_CHANNELS } from '../shared/channels';
 import * as auth from './auth';
 import * as fabric from './fabric';
+import * as connections from './connections';
 import * as llm from './llm';
 
 export function registerIpcHandlers(): void {
@@ -100,6 +101,81 @@ export function registerIpcHandlers(): void {
         throw new Error('dataflowId is required');
       }
       return fabric.getDataflowQueries(workspaceId, dataflowId);
+    }
+  );
+
+  // Connections
+  ipcMain.handle(IPC_CHANNELS.CONNECTIONS_LIST, async () => {
+    return connections.listConnections();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CONNECTIONS_LIST_CLUSTERS, async () => {
+    return connections.listGatewayClusterDatasources(true);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CONNECTIONS_DIAGNOSE, async () => {
+    return connections.diagnoseConnections();
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.CONNECTIONS_INSPECT_DATAFLOW,
+    async (_e: IpcMainInvokeEvent, workspaceId: string, dataflowId: string) => {
+      if (!workspaceId || typeof workspaceId !== 'string') {
+        throw new Error('workspaceId is required');
+      }
+      if (!dataflowId || typeof dataflowId !== 'string') {
+        throw new Error('dataflowId is required');
+      }
+      return connections.inspectDataflow(workspaceId, dataflowId);
+    }
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.CONNECTIONS_BIND,
+    async (
+      _e: IpcMainInvokeEvent,
+      workspaceId: string,
+      dataflowId: string,
+      connectionIds: string[],
+      clearExisting?: boolean
+    ) => {
+      if (!workspaceId || typeof workspaceId !== 'string') {
+        throw new Error('workspaceId is required');
+      }
+      if (!dataflowId || typeof dataflowId !== 'string') {
+        throw new Error('dataflowId is required');
+      }
+      if (!Array.isArray(connectionIds)) {
+        throw new Error('connectionIds must be an array');
+      }
+      return connections.addConnectionsToDataflow(workspaceId, dataflowId, connectionIds, {
+        clearExisting: !!clearExisting,
+      });
+    }
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.CONNECTIONS_DUMP_INSPECT,
+    async (_e: IpcMainInvokeEvent, workspaceId: string, dataflowId: string) => {
+      return connections.dumpInspectToFile(workspaceId, dataflowId);
+    }
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.CONNECTIONS_ANALYZE,
+    async (
+      _e: IpcMainInvokeEvent,
+      workspaceId: string,
+      dataflowId: string,
+      mashupOverride?: string
+    ) => {
+      if (!workspaceId || typeof workspaceId !== 'string') {
+        throw new Error('workspaceId is required');
+      }
+      if (!dataflowId || typeof dataflowId !== 'string') {
+        throw new Error('dataflowId is required');
+      }
+      return connections.analyzeForBinding(workspaceId, dataflowId, mashupOverride);
     }
   );
 

@@ -36,6 +36,19 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
     getQueries: (workspaceId: string, dataflowId: string) =>
       invoke(IPC_CHANNELS.FABRIC_GET_QUERIES, workspaceId, dataflowId),
   },
+  connections: {
+    list: () => invoke(IPC_CHANNELS.CONNECTIONS_LIST),
+    listClusters: () => invoke(IPC_CHANNELS.CONNECTIONS_LIST_CLUSTERS),
+    diagnose: () => invoke(IPC_CHANNELS.CONNECTIONS_DIAGNOSE),
+    inspectDataflow: (workspaceId: string, dataflowId: string) =>
+      invoke(IPC_CHANNELS.CONNECTIONS_INSPECT_DATAFLOW, workspaceId, dataflowId),
+    bind: (workspaceId: string, dataflowId: string, connectionIds: string[], clearExisting?: boolean) =>
+      invoke(IPC_CHANNELS.CONNECTIONS_BIND, workspaceId, dataflowId, connectionIds, clearExisting),
+    dumpInspect: (workspaceId: string, dataflowId: string) =>
+      invoke<string>(IPC_CHANNELS.CONNECTIONS_DUMP_INSPECT, workspaceId, dataflowId),
+    analyze: (workspaceId: string, dataflowId: string, mashupOverride?: string) =>
+      invoke(IPC_CHANNELS.CONNECTIONS_ANALYZE, workspaceId, dataflowId, mashupOverride),
+  },
   llm: {
     generateMCode: (provider: string, prompt: string, context?: string[]) =>
       invoke(IPC_CHANNELS.LLM_GENERATE, provider, prompt, context),

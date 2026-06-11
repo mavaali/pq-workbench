@@ -32,6 +32,7 @@ import { SchemaPanel } from './components/SchemaPanel';
 import { QueryInfoPanel } from './components/QueryInfoPanel';
 import { DangerousFunctionBanner } from './components/DangerousFunctionBanner';
 import { QueryBrowser } from './components/QueryBrowser';
+import { BindConnectionsModal } from './components/BindConnectionsModal';
 import { useFabric } from './hooks/useFabric';
 import type { LlmAvailability } from './types/api';
 
@@ -45,6 +46,21 @@ export function App() {
   const [activeQueryName, setActiveQueryName] = useState<string | undefined>();
   const [activeQueryDoc, setActiveQueryDoc] = useState<string | undefined>();
   const [llmAvailability, setLlmAvailability] = useState<LlmAvailability | null>(null);
+
+  // Connection-binding modal state
+  const [bindOpen, setBindOpen] = useState(false);
+  const [bindMissing, setBindMissing] = useState<any[]>([]);
+  const [bindBound, setBindBound] = useState<any[]>([]);
+  const [binding, setBinding] = useState(false);
+  const [bindError, setBindError] = useState<string | null>(null);
+  // Pending execute args, captured when analyze finds missing bindings
+  const [pendingExec, setPendingExec] = useState<{
+    workspaceId: string;
+    dataflowId: string;
+    expression: string;
+    queryName?: string;
+    originalDocument?: string;
+  } | null>(null);
 
   const fabric = useFabric();
   const {
@@ -111,7 +127,7 @@ export function App() {
     [selectedWorkspace, fetchQueries]
   );
 
-  const handleRun = useCallback(() => {
+  const handleRun = useCallback(async () => {
     if (!selectedWorkspace || !selectedDataflow) {
       setError('Select a workspace and dataflow first');
       return;
@@ -125,8 +141,81 @@ export function App() {
       setError('This looks like natural language. Use "Generate M" in AI Assist first, then run the generated code.');
       return;
     }
+
+    // Analyze connection bindings before executing. If any required source isn't bound,
+    // open the modal to let the user pick connections, bind, then execute.
+    const api = (window as any).pqWorkbench;
+    if (api?.connections?.analyze) {
+      try {
+        const analysis = await api.connections.analyze(
+          selectedWorkspace,
+          selectedDataflow,
+          activeQueryDoc || mCode
+        );
+        if (!analysis.ready) {
+          setBindMissing(analysis.missing);
+          setBindBound(analysis.bound);
+          setBindError(null);
+          setPendingExec({
+            workspaceId: selectedWorkspace,
+            dataflowId: selectedDataflow,
+            expression: mCode,
+            queryName: activeQueryName,
+            originalDocument: activeQueryDoc,
+          });
+          setBindOpen(true);
+          return;
+        }
+      } catch (e: unknown) {
+        // Don't block execution on analyze failure — fall through to existing behavior.
+        // (The user will still see the existing HTTP 500 error if connections really are missing.)
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn('[App] analyzeForBinding failed, proceeding with execute:', msg);
+        setError(`Connection-binding pre-check failed (proceeding with execute anyway): ${msg}`);
+      }
+    }
+
     executeQuery(selectedWorkspace, selectedDataflow, mCode, undefined, activeQueryName, activeQueryDoc);
   }, [selectedWorkspace, selectedDataflow, mCode, executeQuery, showNL, setError, activeQueryName, activeQueryDoc]);
+
+  const handleBindConfirm = useCallback(
+    async (connectionIds: string[]) => {
+      if (!pendingExec) return;
+      const api = (window as any).pqWorkbench;
+      setBinding(true);
+      setBindError(null);
+      try {
+        const result = await api.connections.bind(
+          pendingExec.workspaceId,
+          pendingExec.dataflowId,
+          connectionIds
+        );
+        console.log('[App] bind result:', result);
+        setBindOpen(false);
+        // Now execute against the just-bound dataflow
+        await executeQuery(
+          pendingExec.workspaceId,
+          pendingExec.dataflowId,
+          pendingExec.expression,
+          undefined,
+          pendingExec.queryName,
+          pendingExec.originalDocument
+        );
+        setPendingExec(null);
+      } catch (e: unknown) {
+        setBindError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBinding(false);
+      }
+    },
+    [pendingExec, executeQuery]
+  );
+
+  const handleBindCancel = useCallback(() => {
+    setBindOpen(false);
+    setPendingExec(null);
+    setBindError(null);
+  }, []);
 
   const handleGenerate = useCallback(
     async (prompt: string, provider: 'gh-copilot' | 'claude', context?: string[]) => {
@@ -153,6 +242,17 @@ export function App() {
         authStatus={authStatus}
         onSignIn={signIn}
         llmAvailability={llmAvailability}
+      />
+
+      {/* Connection-binding modal — opened by handleRun when sources are unbound */}
+      <BindConnectionsModal
+        open={bindOpen}
+        missing={bindMissing}
+        bound={bindBound}
+        onCancel={handleBindCancel}
+        onConfirm={handleBindConfirm}
+        binding={binding}
+        bindError={bindError}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
