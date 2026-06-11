@@ -463,55 +463,43 @@ export function App() {
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <Allotment vertical defaultSizes={[300, 200]}>
             <Allotment.Pane minSize={150}>
-              {activeTab?.dataflowId ? (
-                <Allotment defaultSizes={[200, 600]}>
-                  <Allotment.Pane minSize={120} preferredSize={200}>
-                    <QueryBrowser
-                      queries={queries}
-                      onSelectQuery={(q) => {
-                        newTab({
-                          workspaceId: activeTab?.workspaceId ?? '',
-                          workspaceName: activeTab?.workspaceName,
-                          dataflowId: activeTab?.dataflowId ?? '',
-                          dataflowName: activeTab?.dataflowName,
-                          mCode: q.expression,
-                          activeQueryName: q.name,
-                          activeQueryDoc: (q as any).originalDocument,
-                        });
-                      }}
-                    />
-                  </Allotment.Pane>
-                  <Allotment.Pane>
-                    <QueryEditor
-                      value={activeTab?.mCode ?? ''}
-                      onChange={(v) =>
-                        updateActiveTab({
-                          mCode: v,
-                          activeQueryName: undefined,
-                          activeQueryDoc: undefined,
-                        })
-                      }
-                      onRun={handleRun}
-                      loading={tabLoading}
-                      dark={dark}
-                    />
-                  </Allotment.Pane>
-                </Allotment>
-              ) : (
-                <QueryEditor
-                  value={activeTab?.mCode ?? ''}
-                  onChange={(v) =>
-                    updateActiveTab({
-                      mCode: v,
-                      activeQueryName: undefined,
-                      activeQueryDoc: undefined,
-                    })
-                  }
-                  onRun={handleRun}
-                  loading={tabLoading}
-                  dark={dark}
-                />
-              )}
+              <Allotment defaultSizes={[200, 600]}>
+                <Allotment.Pane
+                  minSize={120}
+                  preferredSize={200}
+                  visible={!!activeTab?.dataflowId}
+                >
+                  <QueryBrowser
+                    queries={queries}
+                    onSelectQuery={(q) => {
+                      newTab({
+                        workspaceId: activeTab?.workspaceId ?? '',
+                        workspaceName: activeTab?.workspaceName,
+                        dataflowId: activeTab?.dataflowId ?? '',
+                        dataflowName: activeTab?.dataflowName,
+                        mCode: q.expression,
+                        activeQueryName: q.name,
+                        activeQueryDoc: (q as any).originalDocument,
+                      });
+                    }}
+                  />
+                </Allotment.Pane>
+                <Allotment.Pane>
+                  <QueryEditor
+                    value={activeTab?.mCode ?? ''}
+                    onChange={(v) =>
+                      updateActiveTab({
+                        mCode: v,
+                        activeQueryName: undefined,
+                        activeQueryDoc: undefined,
+                      })
+                    }
+                    onRun={handleRun}
+                    loading={tabLoading}
+                    dark={dark}
+                  />
+                </Allotment.Pane>
+              </Allotment>
             </Allotment.Pane>
             <Allotment.Pane minSize={100}>
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
