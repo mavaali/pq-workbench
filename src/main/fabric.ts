@@ -53,6 +53,60 @@ async function fabricFetch<T>(path: string, options: RequestInit = {}): Promise<
   return res.json() as Promise<T>;
 }
 
+export interface FabricCapacity {
+  id: string;
+  displayName: string;
+  sku: string;
+  state: string;
+  region?: string;
+}
+
+export interface FabricEligibility {
+  eligible: boolean;
+  capacityCount: number;
+  fabricCapableCount: number;
+  reason?: string;
+}
+
+const FABRIC_SKU_PREFIXES = ['F', 'P', 'FT'];
+
+function isFabricCapableSku(sku: string | undefined): boolean {
+  if (!sku) return false;
+  const upper = sku.toUpperCase();
+  if (upper.startsWith('A')) return false;
+  return FABRIC_SKU_PREFIXES.some((p) => upper.startsWith(p));
+}
+
+export async function listCapacities(): Promise<FabricCapacity[]> {
+  const data = await fabricFetch<{ value: FabricCapacity[] }>('/capacities');
+  return data.value;
+}
+
+export async function checkFabricEligibility(): Promise<FabricEligibility> {
+  try {
+    const capacities = await listCapacities();
+    const fabricCapable = capacities.filter((c) => isFabricCapableSku(c.sku));
+    return {
+      eligible: fabricCapable.length > 0,
+      capacityCount: capacities.length,
+      fabricCapableCount: fabricCapable.length,
+      reason:
+        fabricCapable.length === 0
+          ? capacities.length === 0
+            ? 'No capacities found on your tenant.'
+            : 'You have capacities, but none are Fabric-eligible (F, P, or FT SKUs).'
+          : undefined,
+    };
+  } catch (err) {
+    return {
+      eligible: false,
+      capacityCount: 0,
+      fabricCapableCount: 0,
+      reason: `Could not verify Fabric capacity: ${(err as Error).message}`,
+    };
+  }
+}
+
 export async function listWorkspaces(): Promise<FabricWorkspace[]> {
   const data = await fabricFetch<{ value: FabricWorkspace[] }>('/workspaces');
   return data.value;

@@ -1,5 +1,8 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { existsSync } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
 
 const execFileAsync = promisify(execFile);
 
@@ -12,10 +15,14 @@ export interface LlmResult {
   rawOutput: string;
 }
 
-export interface LlmAvailability {
-  'gh-copilot': boolean;
-  claude: boolean;
+export type AuthState = 'authenticated' | 'unauthenticated' | 'unknown';
+
+export interface LlmProviderStatus {
+  cliInstalled: boolean;
+  auth: AuthState;
 }
+
+export type LlmAvailability = Record<LlmProvider, LlmProviderStatus>;
 
 async function which(cmd: string): Promise<string | null> {
   try {
@@ -28,11 +35,68 @@ async function which(cmd: string): Promise<string | null> {
   }
 }
 
+/**
+ * Probe whether the GitHub Copilot CLI has a stored credential.
+ *  - macOS: `copilot login --help` documents that the token lives in the system
+ *    credential store, service name "GitHub Copilot CLI". We query Keychain
+ *    directly with `security find-generic-password`.
+ *  - Fallback file (per the CLI's own help text): `~/.copilot/auth.json` if
+ *    Keychain wasn't available at login time.
+ *  - Env override: GH_TOKEN / GITHUB_TOKEN.
+ *  - Other platforms: best-effort fallback file only; otherwise `unknown`.
+ */
+async function probeCopilotAuth(): Promise<AuthState> {
+  if (process.env.GH_TOKEN || process.env.GITHUB_TOKEN) return 'authenticated';
+
+  const fallbackFile = join(homedir(), '.copilot', 'auth.json');
+  if (existsSync(fallbackFile)) return 'authenticated';
+
+  if (process.platform === 'darwin') {
+    try {
+      await execFileAsync(
+        '/usr/bin/security',
+        ['find-generic-password', '-s', 'copilot-cli'],
+        { timeout: 3_000 },
+      );
+      return 'authenticated';
+    } catch (err: unknown) {
+      // Exit 44 = not found, other non-zero = some other error
+      const code = (err as { code?: number }).code;
+      if (code === 44) return 'unauthenticated';
+      return 'unknown';
+    }
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Probe Claude CLI authentication via the well-known credential file. Claude
+ * CLI also supports an ANTHROPIC_API_KEY env override.
+ */
+async function probeClaudeAuth(): Promise<AuthState> {
+  if (process.env.ANTHROPIC_API_KEY) return 'authenticated';
+
+  const candidates = [
+    join(homedir(), '.claude', '.credentials.json'),
+    join(homedir(), '.config', 'claude', '.credentials.json'),
+  ];
+  if (candidates.some((p) => existsSync(p))) return 'authenticated';
+
+  return 'unknown';
+}
+
 export async function checkAvailability(): Promise<LlmAvailability> {
   const [copilot, claude] = await Promise.all([which('copilot'), which('claude')]);
+
+  const [copilotAuth, claudeAuth] = await Promise.all([
+    copilot ? probeCopilotAuth() : Promise.resolve<AuthState>('unauthenticated'),
+    claude ? probeClaudeAuth() : Promise.resolve<AuthState>('unauthenticated'),
+  ]);
+
   return {
-    'gh-copilot': copilot !== null,
-    claude: claude !== null,
+    'gh-copilot': { cliInstalled: copilot !== null, auth: copilotAuth },
+    claude: { cliInstalled: claude !== null, auth: claudeAuth },
   };
 }
 

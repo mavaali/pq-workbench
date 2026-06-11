@@ -3,6 +3,7 @@ import type {
   AuthStatus,
   FabricWorkspace,
   FabricDataflow,
+  FabricEligibility,
   DataflowQuery,
   QueryResult,
   LlmProvider,
@@ -50,6 +51,22 @@ export function useFabric() {
   const [queries, setQueries] = useState<DataflowQuery[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fabricEligibility, setFabricEligibility] = useState<FabricEligibility | null>(null);
+
+  const checkFabricEligibility = useCallback(async () => {
+    if (!api) return;
+    try {
+      const result = await api.fabric.checkEligibility();
+      setFabricEligibility(result);
+    } catch {
+      setFabricEligibility({
+        eligible: false,
+        capacityCount: 0,
+        fabricCapableCount: 0,
+        reason: 'Could not verify Fabric capacity.',
+      });
+    }
+  }, []);
 
   // Auto-check auth status on mount
   useEffect(() => {
@@ -61,11 +78,12 @@ export function useFabric() {
           if (status.signedIn) {
             const ws = await api.fabric.listWorkspaces();
             setWorkspaces(ws);
+            checkFabricEligibility();
           }
         }
       } catch { /* not logged in or MCP not ready */ }
     })();
-  }, []);
+  }, [checkFabricEligibility]);
 
   // Listen for device code events from main process
   useEffect(() => {
@@ -113,12 +131,13 @@ export function useFabric() {
     try {
       const ws = api ? await api.fabric.listWorkspaces() : MOCK_WORKSPACES;
       setWorkspaces(ws);
+      checkFabricEligibility();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [checkFabricEligibility]);
 
   const fetchDataflows = useCallback(async (workspaceId: string) => {
     setLoading(true);
@@ -206,11 +225,15 @@ export function useFabric() {
   );
 
   const checkLlmAvailability = useCallback(async (): Promise<LlmAvailability> => {
+    const empty: LlmAvailability = {
+      'gh-copilot': { cliInstalled: false, auth: 'unauthenticated' },
+      claude: { cliInstalled: false, auth: 'unauthenticated' },
+    };
     try {
       if (api) return await api.llm.checkAvailability();
-      return { 'gh-copilot': true, claude: false };
+      return empty;
     } catch {
-      return { 'gh-copilot': false, claude: false };
+      return empty;
     }
   }, []);
 
@@ -222,6 +245,7 @@ export function useFabric() {
     queryResult,
     loading,
     error,
+    fabricEligibility,
     signIn,
     signOut,
     fetchWorkspaces,
