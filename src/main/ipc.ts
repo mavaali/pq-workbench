@@ -1,5 +1,8 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { ipcMain, IpcMainInvokeEvent, dialog, BrowserWindow } from 'electron';
 import { execFile } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { IPC_CHANNELS } from '../shared/channels';
 import * as auth from './auth';
 import * as fabric from './fabric';
@@ -176,6 +179,44 @@ export function registerIpcHandlers(): void {
         throw new Error('dataflowId is required');
       }
       return connections.analyzeForBinding(workspaceId, dataflowId, mashupOverride);
+    }
+  );
+
+  // CSV export: opens native Save dialog, writes file. Returns {path} on success,
+  // or {canceled: true} if user dismissed. Throws on I/O failure.
+  ipcMain.handle(
+    IPC_CHANNELS.EXPORT_CSV,
+    async (
+      e: IpcMainInvokeEvent,
+      csvContent: string,
+      suggestedName?: string
+    ): Promise<{ path: string } | { canceled: true }> => {
+      if (typeof csvContent !== 'string') {
+        throw new Error('csvContent must be a string');
+      }
+      const safeName = (suggestedName || 'query-results')
+        .replace(/[\/\\:*?"<>|]/g, '_')
+        .slice(0, 120);
+      const defaultPath = path.join(
+        os.homedir(),
+        'Downloads',
+        `${safeName}-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.csv`
+      );
+      const win = BrowserWindow.fromWebContents(e.sender) || undefined;
+      const result = await dialog.showSaveDialog(win!, {
+        title: 'Export results as CSV',
+        defaultPath,
+        filters: [
+          { name: 'CSV', extensions: ['csv'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      });
+      if (result.canceled || !result.filePath) {
+        return { canceled: true };
+      }
+      // UTF-8 BOM so Excel detects encoding correctly when opening
+      fs.writeFileSync(result.filePath, '\uFEFF' + csvContent, 'utf-8');
+      return { path: result.filePath };
     }
   );
 

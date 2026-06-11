@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
     analyze: (workspaceId: string, dataflowId: string, mashupOverride?: string) =>
       invoke(IPC_CHANNELS.CONNECTIONS_ANALYZE, workspaceId, dataflowId, mashupOverride),
   },
+  exportCsv: (csvContent: string, suggestedName?: string) =>
+    invoke<{ path: string } | { canceled: true }>(IPC_CHANNELS.EXPORT_CSV, csvContent, suggestedName),
   llm: {
     generateMCode: (provider: string, prompt: string, context?: string[]) =>
       invoke(IPC_CHANNELS.LLM_GENERATE, provider, prompt, context),

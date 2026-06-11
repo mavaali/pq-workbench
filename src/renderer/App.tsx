@@ -371,7 +371,7 @@ export function App() {
                 </TabList>
                 <div style={{ flex: 1, overflow: 'auto', padding: '8px 16px' }}>
                   {loading && <Spinner size="small" label="Executing…" />}
-                  {!loading && selectedTab === 'data' && <ResultsPanel result={queryResult} />}
+                  {!loading && selectedTab === 'data' && <ResultsPanel result={queryResult} suggestedName={activeQueryName || 'query-results'} />}
                   {!loading && selectedTab === 'schema' && <SchemaPanel result={queryResult} />}
                   {!loading && selectedTab === 'info' && <QueryInfoPanel result={queryResult} />}
                 </div>
