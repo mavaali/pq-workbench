@@ -328,9 +328,9 @@ export function BindConnectionsModal({
               icon={<Open16Regular />}
               onClick={() => {
                 const api = (window as any).pqWorkbench;
-                const url = workspaceId
-                  ? `https://app.fabric.microsoft.com/groups/${workspaceId}/connections`
-                  : 'https://app.fabric.microsoft.com/connections';
+                // Connections are tenant-level in Fabric, not workspace-scoped.
+                // The canonical URL is /connections (no group prefix).
+                const url = 'https://app.fabric.microsoft.com/connections';
                 api?.openExternal?.(url).catch((e: unknown) => {
                   console.warn('[BindModal] openExternal failed:', e);
                 });
