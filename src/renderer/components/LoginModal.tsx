@@ -121,16 +121,21 @@ const useStyles = makeStyles({
       background: TEAL_GRADIENT,
     },
   },
-  aiHint: {
+  aiSection: {
     display: 'flex',
-    alignItems: 'center',
+    flexDirection: 'column',
     gap: '10px',
     padding: '12px 16px',
-    fontSize: '13px',
-    color: tokens.colorNeutralForeground3,
     border: `1px solid ${tokens.colorNeutralStroke2}`,
     borderRadius: '10px',
     backgroundColor: tokens.colorNeutralBackground2,
+  },
+  aiHintRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    fontSize: '13px',
+    color: tokens.colorNeutralForeground3,
   },
   aiHintIcon: {
     color: tokens.colorPaletteLightTealForeground2,
@@ -138,25 +143,23 @@ const useStyles = makeStyles({
   },
   aiHintText: {
     flex: 1,
+    minWidth: 0,
   },
-  aiDetails: {
-    // Native <details>; we style only the inner panel via aiDetailsContent.
-    width: '100%',
-  },
-  aiSummary: {
-    listStyle: 'none',
-    cursor: 'pointer',
+  aiToggle: {
+    flexShrink: 0,
     color: tokens.colorBrandForegroundLink,
     fontSize: '13px',
     fontWeight: 500,
-    '::-webkit-details-marker': { display: 'none' },
+    background: 'transparent',
+    border: 'none',
+    padding: 0,
+    cursor: 'pointer',
     ':hover': { textDecoration: 'underline' },
   },
   aiDetailsContent: {
-    marginTop: '12px',
-    padding: '16px',
+    padding: '12px',
     border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: '10px',
+    borderRadius: '8px',
     backgroundColor: tokens.colorNeutralBackground1,
   },
   cardTitle: {
@@ -271,6 +274,7 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
   const styles = useStyles();
   const [signingIn, setSigningIn] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
+  const [aiExpanded, setAiExpanded] = useState(false);
 
   useEffect(() => {
     if (authStatus.signedIn) setSigningIn(false);
@@ -358,14 +362,23 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
               )}
             </div>
 
-            {/* AI Assist — collapsed by default; details discloses provider rows */}
-            <div className={styles.aiHint}>
-              <Sparkle24Filled className={styles.aiHintIcon} />
-              <span className={styles.aiHintText}>
-                <strong style={{ fontWeight: 600 }}>AI Assist</strong> is optional — set up anytime via the toolbar toggle.
-              </span>
-              <details className={styles.aiDetails}>
-                <summary className={styles.aiSummary}>Set up now</summary>
+            {/* AI Assist — collapsed by default; toggle discloses provider rows */}
+            <div className={styles.aiSection}>
+              <div className={styles.aiHintRow}>
+                <Sparkle24Filled className={styles.aiHintIcon} />
+                <span className={styles.aiHintText}>
+                  <strong style={{ fontWeight: 600 }}>AI Assist</strong> is optional — set up anytime via the toolbar toggle.
+                </span>
+                <button
+                  type="button"
+                  className={styles.aiToggle}
+                  onClick={() => setAiExpanded((v) => !v)}
+                  aria-expanded={aiExpanded}
+                >
+                  {aiExpanded ? 'Hide' : 'Set up now'}
+                </button>
+              </div>
+              {aiExpanded && (
                 <div className={styles.aiDetailsContent}>
                   {PROVIDERS.map(({ id, name, installUrl, signInCmd }) => {
                     const status = llmAvailability?.[id];
@@ -414,7 +427,7 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
                     );
                   })}
                 </div>
-              </details>
+              )}
             </div>
           </DialogContent>
         </DialogBody>
