@@ -9,10 +9,11 @@ import type { DataflowQuery } from '../types/api';
 
 interface Props {
   queries: DataflowQuery[];
+  selectedQueryName?: string;
   onSelectQuery: (query: DataflowQuery) => void;
 }
 
-export function QueryBrowser({ queries, onSelectQuery }: Props) {
+export function QueryBrowser({ queries, selectedQueryName, onSelectQuery }: Props) {
   if (queries.length === 0) {
     return (
       <div
@@ -57,22 +58,26 @@ export function QueryBrowser({ queries, onSelectQuery }: Props) {
         Queries
       </Text>
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px' }}>
-        {queries.map((q) => (
-          <Button
-            key={q.name}
-            appearance="subtle"
-            icon={<Code24Regular />}
-            onClick={() => onSelectQuery(q)}
-            style={{
-              width: '100%',
-              justifyContent: 'flex-start',
-              textAlign: 'left',
-              minHeight: 32,
-            }}
-          >
-            {q.name}
-          </Button>
-        ))}
+        {queries.map((q) => {
+          const isSelected = q.name === selectedQueryName;
+          return (
+            <Button
+              key={q.name}
+              appearance={isSelected ? 'primary' : 'subtle'}
+              icon={<Code24Regular />}
+              onClick={() => onSelectQuery(q)}
+              aria-current={isSelected ? 'true' : undefined}
+              style={{
+                width: '100%',
+                justifyContent: 'flex-start',
+                textAlign: 'left',
+                minHeight: 32,
+              }}
+            >
+              {q.name}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );

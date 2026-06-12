@@ -8,6 +8,10 @@ export interface EditorTab {
   dataflowId: string;
   dataflowName?: string;
   mCode: string;
+  /** Snapshot of mCode at last "clean" point — tab creation, query load, or
+   *  successful execute. Used to compute isDirty (mCode !== mCodeBaseline).
+   *  When undefined (legacy persisted tabs), the tab is treated as clean. */
+  mCodeBaseline?: string;
   activeQueryName?: string;
   activeQueryDoc?: string;
   queryResult: QueryResult | null;
@@ -19,18 +23,28 @@ export const DEFAULT_M_CODE =
   `let\n    Source = Table.FromRecords({\n        [ID=1, Name="Hello"],\n        [ID=2, Name="World"]\n    })\nin\n    Source`;
 
 export function makeEmptyTab(seq: number, initial?: Partial<EditorTab>): EditorTab {
+  const mCode = initial?.mCode ?? DEFAULT_M_CODE;
+  const baseline = initial?.mCodeBaseline ?? mCode;
   return {
     id: `tab-${Date.now()}-${seq}`,
     title: `Untitled ${seq}`,
     workspaceId: '',
     dataflowId: '',
-    mCode: DEFAULT_M_CODE,
     activeQueryName: undefined,
     activeQueryDoc: undefined,
     queryResult: null,
     loading: false,
     ...initial,
+    mCode,
+    mCodeBaseline: baseline,
   };
+}
+
+/** A tab is dirty when its current mCode diverges from the last "clean" snapshot.
+ *  Legacy persisted tabs (no baseline) are treated as clean to avoid a sea of dots. */
+export function isTabDirty(t: EditorTab): boolean {
+  if (t.mCodeBaseline === undefined) return false;
+  return t.mCode !== t.mCodeBaseline;
 }
 
 /** Display title: query name if present, else stored title, else fallback. */
