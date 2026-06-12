@@ -10,10 +10,40 @@ import type { DataflowQuery } from '../types/api';
 interface Props {
   queries: DataflowQuery[];
   selectedQueryName?: string;
+  /** Whether the active tab has a dataflow bound. Drives empty-state copy
+   *  so the rail can render from launch without a layout shift (#52). */
+  hasDataflow: boolean;
   onSelectQuery: (query: DataflowQuery) => void;
 }
 
-export function QueryBrowser({ queries, selectedQueryName, onSelectQuery }: Props) {
+export function QueryBrowser({ queries, selectedQueryName, hasDataflow, onSelectQuery }: Props) {
+  if (!hasDataflow) {
+    return (
+      <div
+        style={{
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+        }}
+      >
+        <Text
+          weight="semibold"
+          size={300}
+          style={{ marginBottom: 8 }}
+        >
+          Queries
+        </Text>
+        <Text
+          size={200}
+          style={{ color: tokens.colorNeutralForeground3 }}
+        >
+          Select a dataflow to browse its queries.
+        </Text>
+      </div>
+    );
+  }
+
   if (queries.length === 0) {
     return (
       <div
@@ -35,7 +65,8 @@ export function QueryBrowser({ queries, selectedQueryName, onSelectQuery }: Prop
           size={200}
           style={{ color: tokens.colorNeutralForeground3, fontStyle: 'italic' }}
         >
-          (no queries — need contributor access)
+          No queries found. The dataflow may be empty, or you may need Contributor
+          access on this workspace.
         </Text>
       </div>
     );
