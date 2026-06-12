@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isFabricCapableSku } from './fabric';
+import { isFabricCapableSku } from './fabric-sku';
 
 describe('isFabricCapableSku', () => {
   it.each([
