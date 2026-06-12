@@ -12,6 +12,11 @@ import {
   applyExecuteQueryErrorMarker,
   clearExecuteQueryErrorMarkers,
 } from '../lsp/apiErrorMarkers';
+import { pqMonacoDark, pqMonacoLight } from '../theme/monacoTheme';
+
+const PQ_MONACO_DARK = 'pq-dark';
+const PQ_MONACO_LIGHT = 'pq-light';
+let monacoThemesRegistered = false;
 
 interface Props {
   value: string;
@@ -96,6 +101,15 @@ export function QueryEditor({
     monacoRef.current = monaco;
     // Set initial value explicitly
     editor.setValue(value);
+
+    // Register the PQ Workbench Monaco themes once per Monaco namespace.
+    // Idempotent — defineTheme is safe to call repeatedly, but the flag
+    // makes the intent explicit.
+    if (!monacoThemesRegistered) {
+      monaco.editor.defineTheme(PQ_MONACO_DARK, pqMonacoDark);
+      monaco.editor.defineTheme(PQ_MONACO_LIGHT, pqMonacoLight);
+      monacoThemesRegistered = true;
+    }
 
     // Register M language (basic tokenization). The LSP module adds completion,
     // hover, and diagnostics on top of this.
@@ -197,7 +211,7 @@ export function QueryEditor({
         <Editor
           height="100%"
           language={POWERQUERY_LANGUAGE_ID}
-          theme={dark ? 'vs-dark' : 'light'}
+          theme={dark ? PQ_MONACO_DARK : PQ_MONACO_LIGHT}
           value={value}
           onChange={(v) => {
             if (!isSettingValue.current) {

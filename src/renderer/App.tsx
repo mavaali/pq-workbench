@@ -1,8 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   FluentProvider,
-  webLightTheme,
-  webDarkTheme,
   tokens,
   ToolbarButton,
   ToolbarDivider,
@@ -40,11 +38,34 @@ import { useFabric } from './hooks/useFabric';
 import { useEditorTabs } from './hooks/useEditorTabs';
 import type { LlmAvailability } from './types/api';
 import { computeTabNameBackfill, DEFAULT_M_CODE, isTabDirty } from './types/tabs';
+import { pqDarkTheme, pqLightTheme } from './theme/fluentTheme';
+
+const DARK_MODE_STORAGE_KEY = 'pqwb:dark-mode';
+
+function loadInitialDark(): boolean {
+  try {
+    const raw = localStorage.getItem(DARK_MODE_STORAGE_KEY);
+    if (raw === '0') return false;
+    if (raw === '1') return true;
+  } catch {
+    /* fall through */
+  }
+  // Dark is the product identity (per Fable theme spec); default true.
+  return true;
+}
 
 const isMacLike = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 export function App() {
-  const [dark, setDark] = useState(false);
+  const [dark, setDarkState] = useState(loadInitialDark);
+  const setDark = useCallback((value: boolean) => {
+    setDarkState(value);
+    try {
+      localStorage.setItem(DARK_MODE_STORAGE_KEY, value ? '1' : '0');
+    } catch {
+      /* ignore storage errors */
+    }
+  }, []);
   const [resultsTab, setResultsTab] = useState<string>('data');
   const [showNL, setShowNL] = useState(false);
   const [eligibilityDismissed, setEligibilityDismissed] = useState(false);
@@ -345,7 +366,7 @@ export function App() {
   const tabLoading = !!activeTab?.loading || loading;
 
   return (
-    <FluentProvider theme={dark ? webDarkTheme : webLightTheme} style={{ height: '100%' }}>
+    <FluentProvider theme={dark ? pqDarkTheme : pqLightTheme} style={{ height: '100%' }}>
       <LoginModal
         authStatus={authStatus}
         onSignIn={signIn}
