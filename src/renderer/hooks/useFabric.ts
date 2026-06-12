@@ -199,7 +199,10 @@ export function useFabric() {
           return null;
         }
         setError(msg);
-        return null;
+        // Return the Error so callers can inspect cause (e.g. "Credentials
+        // are required to connect to the Lakehouse source") and react with
+        // a targeted recovery path (open bind modal with alternatives).
+        return e instanceof Error ? e : new Error(msg);
       } finally {
         setLoading(false);
       }
