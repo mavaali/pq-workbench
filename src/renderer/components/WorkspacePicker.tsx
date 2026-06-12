@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Combobox, Option } from '@fluentui/react-components';
+import { Combobox, Option, Tooltip } from '@fluentui/react-components';
 import GroupWorkspace24NonItem from '@fabric-msft/svg-icons/GroupWorkspace24NonItem';
 import type { FabricWorkspace } from '../types/api';
 
@@ -29,10 +29,14 @@ export function WorkspacePicker({ workspaces, value, onChange }: Props) {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <GroupWorkspace24NonItem
-        style={{ width: 18, height: 18, flexShrink: 0 }}
-        aria-label="Workspace"
-      />
+      <Tooltip content="Workspace" relationship="label" withArrow>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <GroupWorkspace24NonItem
+            style={{ width: 18, height: 18, flexShrink: 0 }}
+            aria-label="Workspace"
+          />
+        </span>
+      </Tooltip>
       <Combobox
         placeholder="Search workspaces…"
         size="small"
