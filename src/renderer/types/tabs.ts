@@ -54,3 +54,25 @@ export function isWorkspaceAvailable(
   if (!workspaceId) return false;
   return workspaces.some((w) => w.id === workspaceId);
 }
+
+/**
+ * Compute backfill patch for legacy/persisted tabs missing workspaceName/dataflowName.
+ * Returns an empty object if no backfill is needed (caller can skip update).
+ */
+export function computeTabNameBackfill(
+  tab: EditorTab | undefined | null,
+  workspaces: FabricWorkspace[],
+  dataflows: FabricDataflow[]
+): Partial<EditorTab> {
+  if (!tab) return {};
+  const patch: Partial<EditorTab> = {};
+  if (tab.workspaceId && !tab.workspaceName) {
+    const w = workspaces.find((x) => x.id === tab.workspaceId);
+    if (w) patch.workspaceName = w.displayName;
+  }
+  if (tab.dataflowId && !tab.dataflowName) {
+    const d = dataflows.find((x) => x.id === tab.dataflowId);
+    if (d) patch.dataflowName = d.displayName;
+  }
+  return patch;
+}

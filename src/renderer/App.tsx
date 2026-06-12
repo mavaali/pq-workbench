@@ -39,6 +39,7 @@ import { EditorTabs } from './components/EditorTabs';
 import { useFabric } from './hooks/useFabric';
 import { useEditorTabs } from './hooks/useEditorTabs';
 import type { LlmAvailability } from './types/api';
+import { computeTabNameBackfill } from './types/tabs';
 
 const isMacLike = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -109,16 +110,7 @@ export function App() {
 
   // Backfill workspaceName/dataflowName when lists load (for legacy/persisted tabs)
   useEffect(() => {
-    if (!activeTab) return;
-    let patch: Partial<typeof activeTab> = {};
-    if (activeTab.workspaceId && !activeTab.workspaceName) {
-      const w = workspaces.find((x) => x.id === activeTab.workspaceId);
-      if (w) patch.workspaceName = w.displayName;
-    }
-    if (activeTab.dataflowId && !activeTab.dataflowName) {
-      const d = dataflows.find((x) => x.id === activeTab.dataflowId);
-      if (d) patch.dataflowName = d.displayName;
-    }
+    const patch = computeTabNameBackfill(activeTab, workspaces, dataflows);
     if (Object.keys(patch).length > 0) updateActiveTab(patch);
   }, [workspaces, dataflows, activeTab, updateActiveTab]);
 

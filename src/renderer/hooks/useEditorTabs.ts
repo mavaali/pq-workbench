@@ -3,13 +3,15 @@ import { makeEmptyTab, type EditorTab } from '../types/tabs';
 
 const STORAGE_KEY = 'pqwb:tabs:v1';
 
-interface PersistedState {
+export const TABS_STORAGE_KEY = STORAGE_KEY;
+
+export interface PersistedState {
   tabs: EditorTab[];
   activeTabId: string;
   seq: number;
 }
 
-function loadPersisted(): PersistedState | null {
+export function loadPersisted(): PersistedState | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -21,7 +23,7 @@ function loadPersisted(): PersistedState | null {
   }
 }
 
-function persist(state: PersistedState): void {
+export function persist(state: PersistedState): void {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {

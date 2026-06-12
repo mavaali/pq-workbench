@@ -70,7 +70,7 @@ export interface FabricEligibility {
 
 const FABRIC_SKU_PREFIXES = ['F', 'P', 'FT'];
 
-function isFabricCapableSku(sku: string | undefined): boolean {
+export function isFabricCapableSku(sku: string | undefined): boolean {
   if (!sku) return false;
   const upper = sku.toUpperCase();
   if (upper.startsWith('A')) return false;
