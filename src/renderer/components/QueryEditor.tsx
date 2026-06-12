@@ -124,6 +124,15 @@ export function QueryEditor({
 
     // Register M language (basic tokenization). The LSP module adds completion,
     // hover, and diagnostics on top of this.
+    //
+    // Token order below matters — earlier rules win. We tokenize:
+    //   - qualified `Foo.Type` identifiers as 'type'
+    //   - qualified `Foo.Bar(...` calls as 'identifier.function' (paren lookahead)
+    //   - keywords and bare identifiers via the cases block
+    //
+    // The qualified-name rules must come BEFORE the bare identifier rule, or
+    // the bare-identifier match would consume just `Foo` and leave `.Bar` as a
+    // delimiter + identifier sequence.
     monaco.languages.register({ id: POWERQUERY_LANGUAGE_ID });
     monaco.languages.setMonarchTokensProvider(POWERQUERY_LANGUAGE_ID, {
       keywords: [
@@ -138,6 +147,11 @@ export function QueryEditor({
           [/"[^"]*"/, 'string'],
           [/#"[^"]*"/, 'string'],
           [/\b\d+(\.\d+)?\b/, 'number'],
+          // Qualified type references: Int64.Type, Text.Type, Date.Type, etc.
+          [/[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*\.Type\b/, 'type'],
+          // Qualified function calls: Table.FromRecords(, Lakehouse.Contents(, etc.
+          // The paren lookahead is what distinguishes a call site from a bare ref.
+          [/[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)+(?=\s*\()/, 'identifier.function'],
           [
             /[a-zA-Z_]\w*/,
             {
