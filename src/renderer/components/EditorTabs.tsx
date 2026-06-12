@@ -1,7 +1,7 @@
 import { Button, Tooltip, tokens, makeStyles, mergeClasses } from '@fluentui/react-components';
 import { Add16Regular, Dismiss12Regular } from '@fluentui/react-icons';
 import type { EditorTab } from '../types/tabs';
-import { tabTitle } from '../types/tabs';
+import { tabTitle, isTabDirty } from '../types/tabs';
 
 interface Props {
   tabs: EditorTab[];
@@ -106,6 +106,44 @@ const useStyles = makeStyles({
       color: tokens.colorNeutralForeground1,
     },
   },
+  dirtyDot: {
+    minWidth: '20px',
+    width: '20px',
+    height: '20px',
+    padding: 0,
+    border: 'none',
+    borderRadius: '4px',
+    background: 'transparent',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    '::before': {
+      content: '""',
+      width: '8px',
+      height: '8px',
+      borderRadius: '50%',
+      background: tokens.colorNeutralForeground2,
+    },
+    ':hover::before': {
+      display: 'none',
+    },
+    ':hover .pqwb-dot-x': {
+      display: 'inline-flex',
+    },
+  },
+  dirtyX: {
+    display: 'none',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: tokens.colorNeutralForeground3,
+    width: '100%',
+    height: '100%',
+    ':hover': {
+      color: tokens.colorNeutralForeground1,
+    },
+  },
   newButton: {
     marginLeft: '4px',
     alignSelf: 'center',
@@ -152,17 +190,42 @@ export function EditorTabs({ tabs, activeTabId, onSelect, onClose, onNew }: Prop
             <div className={styles.titleRow}>
               <span className={styles.title}>{title}</span>
               {tabs.length > 1 && (
-                <button
-                  className={styles.close}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onClose(t.id);
-                  }}
-                  aria-label={`Close ${title}`}
-                  tabIndex={-1}
-                >
-                  <Dismiss12Regular />
-                </button>
+                isTabDirty(t) ? (
+                  <button
+                    className={styles.dirtyDot}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClose(t.id);
+                    }}
+                    aria-label={`${title} has unsaved changes. Close anyway`}
+                    title="Unsaved changes — click to close"
+                    tabIndex={-1}
+                  >
+                    <span className={mergeClasses(styles.dirtyX, 'pqwb-dot-x')}>
+                      <Dismiss12Regular />
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    className={styles.close}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClose(t.id);
+                    }}
+                    aria-label={`Close ${title}`}
+                    tabIndex={-1}
+                  >
+                    <Dismiss12Regular />
+                  </button>
+                )
+              )}
+              {tabs.length === 1 && isTabDirty(t) && (
+                <span
+                  className={styles.dirtyDot}
+                  aria-label="Unsaved changes"
+                  title="Unsaved changes"
+                  role="img"
+                />
               )}
             </div>
             <div className={styles.caption}>{caption}</div>

@@ -39,7 +39,7 @@ import { EditorTabs } from './components/EditorTabs';
 import { useFabric } from './hooks/useFabric';
 import { useEditorTabs } from './hooks/useEditorTabs';
 import type { LlmAvailability } from './types/api';
-import { computeTabNameBackfill } from './types/tabs';
+import { computeTabNameBackfill, DEFAULT_M_CODE, isTabDirty } from './types/tabs';
 
 const isMacLike = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -241,7 +241,12 @@ export function App() {
         tab.activeQueryName,
         tab.activeQueryDoc
       );
-      updateTab(tab.id, { loading: false, queryResult: result ?? tab.queryResult });
+      updateTab(tab.id, {
+        loading: false,
+        queryResult: result ?? tab.queryResult,
+        // Successful execute is a clean point — the M now corresponds to the result.
+        ...(result ? { mCodeBaseline: tab.mCode } : {}),
+      });
     },
     [tabs, executeQuery, updateTab, setError]
   );
@@ -272,7 +277,11 @@ export function App() {
           pendingExec.queryName,
           pendingExec.originalDocument
         );
-        updateTab(pendingExec.tabId, { loading: false, queryResult: result ?? null });
+        updateTab(pendingExec.tabId, {
+          loading: false,
+          queryResult: result ?? null,
+          ...(result ? { mCodeBaseline: pendingExec.expression } : {}),
+        });
         setPendingExec(null);
       } catch (e: unknown) {
         setBindError(e instanceof Error ? e.message : String(e));
@@ -463,13 +472,50 @@ export function App() {
                 >
                   <QueryBrowser
                     queries={queries}
+                    selectedQueryName={activeTab?.activeQueryName}
                     onSelectQuery={(q) => {
+                      const wsId = activeTab?.workspaceId ?? '';
+                      const dfId = activeTab?.dataflowId ?? '';
+                      // 1. If a tab in the same workspace+dataflow already has this query, focus it.
+                      const existing = tabs.find(
+                        (t) =>
+                          t.workspaceId === wsId &&
+                          t.dataflowId === dfId &&
+                          t.activeQueryName === q.name
+                      );
+                      if (existing) {
+                        setActiveTabId(existing.id);
+                        return;
+                      }
+                      // 2. If the active tab is clean and at default scratch M (or empty),
+                      //    replace in place — avoids tab clutter on first browse.
+                      const canReplace =
+                        activeTab &&
+                        !isTabDirty(activeTab) &&
+                        !activeTab.activeQueryName &&
+                        (activeTab.mCode === DEFAULT_M_CODE || activeTab.mCode.trim() === '');
+                      if (canReplace && activeTab) {
+                        updateTab(activeTab.id, {
+                          workspaceId: wsId,
+                          workspaceName: activeTab.workspaceName,
+                          dataflowId: dfId,
+                          dataflowName: activeTab.dataflowName,
+                          mCode: q.expression,
+                          mCodeBaseline: q.expression,
+                          activeQueryName: q.name,
+                          activeQueryDoc: (q as any).originalDocument,
+                          queryResult: null,
+                        });
+                        return;
+                      }
+                      // 3. Otherwise open a new tab. Protects unsaved scratch M (#43).
                       newTab({
-                        workspaceId: activeTab?.workspaceId ?? '',
+                        workspaceId: wsId,
                         workspaceName: activeTab?.workspaceName,
-                        dataflowId: activeTab?.dataflowId ?? '',
+                        dataflowId: dfId,
                         dataflowName: activeTab?.dataflowName,
                         mCode: q.expression,
+                        mCodeBaseline: q.expression,
                         activeQueryName: q.name,
                         activeQueryDoc: (q as any).originalDocument,
                       });
