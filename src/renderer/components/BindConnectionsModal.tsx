@@ -282,7 +282,7 @@ export function BindConnectionsModal({
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <Text weight="semibold">
                                   {!c.hasCredentials && '⚠️ '}
-                                  {shortPath(c.path)}
+                                  {c.displayName || shortPath(c.path) || '(unnamed connection)'}
                                 </Text>
                                 <Caption1>
                                   <span className={styles.badge}>{c.type}</span>{' '}
@@ -360,5 +360,6 @@ export function BindConnectionsModal({
 
 function labelFor(c: ConnectionCandidate): string {
   const flag = c.hasCredentials ? '' : '⚠️ ';
-  return `${flag}${shortPath(c.path)}  ·  ${c.type}`;
+  const name = c.displayName || shortPath(c.path) || '(unnamed connection)';
+  return `${flag}${name}  ·  ${c.type}`;
 }
