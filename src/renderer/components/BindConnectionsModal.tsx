@@ -22,6 +22,7 @@ import {
 import {
   PlugConnected24Regular,
   Warning24Filled,
+  Open16Regular,
 } from '@fluentui/react-icons';
 
 export interface ConnectionCandidate {
@@ -60,6 +61,8 @@ interface Props {
   onConfirm: (selectedConnectionIds: string[]) => void;
   binding: boolean;
   bindError: string | null;
+  /** Workspace context for the Fabric manage-connections deep link. */
+  workspaceId?: string;
 }
 
 const useStyles = makeStyles({
@@ -151,6 +154,7 @@ export function BindConnectionsModal({
   onConfirm,
   binding,
   bindError,
+  workspaceId,
 }: Props) {
   const styles = useStyles();
   // selection state: sourceKind → chosen connection.id
@@ -319,6 +323,23 @@ export function BindConnectionsModal({
             </div>
           </DialogContent>
           <DialogActions>
+            <Button
+              appearance="subtle"
+              icon={<Open16Regular />}
+              onClick={() => {
+                const api = (window as any).pqWorkbench;
+                const url = workspaceId
+                  ? `https://app.fabric.microsoft.com/groups/${workspaceId}/connections`
+                  : 'https://app.fabric.microsoft.com/connections';
+                api?.openExternal?.(url).catch((e: unknown) => {
+                  console.warn('[BindModal] openExternal failed:', e);
+                });
+              }}
+              disabled={binding}
+            >
+              Manage connections in Fabric
+            </Button>
+            <div style={{ flex: 1 }} />
             <Button appearance="secondary" onClick={onCancel} disabled={binding}>
               Cancel
             </Button>

@@ -1,4 +1,4 @@
-import { ipcMain, IpcMainInvokeEvent, dialog, BrowserWindow } from 'electron';
+import { ipcMain, IpcMainInvokeEvent, dialog, BrowserWindow, shell } from 'electron';
 import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -286,5 +286,31 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.LLM_CHECK_AVAILABILITY, async () => {
     return llm.checkAvailability();
+  });
+
+  // Open an external URL in the user's default browser. Restricted to https
+  // origins on a small allowlist so the renderer can't be tricked into
+  // launching arbitrary protocols (file://, javascript:, etc.).
+  const OPEN_EXTERNAL_ALLOWLIST = [
+    'https://app.fabric.microsoft.com',
+    'https://app.powerbi.com',
+    'https://learn.microsoft.com',
+    'https://docs.microsoft.com',
+    'https://github.com',
+  ];
+  ipcMain.handle(IPC_CHANNELS.OPEN_EXTERNAL, async (_e: IpcMainInvokeEvent, url: string) => {
+    if (typeof url !== 'string') throw new Error('url must be a string');
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error('Invalid URL');
+    }
+    if (parsed.protocol !== 'https:') throw new Error('Only https:// URLs are allowed');
+    const origin = `${parsed.protocol}//${parsed.host}`;
+    if (!OPEN_EXTERNAL_ALLOWLIST.includes(origin)) {
+      throw new Error(`Origin not on allowlist: ${origin}`);
+    }
+    await shell.openExternal(url);
   });
 }

@@ -60,4 +60,5 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
       invoke(IPC_CHANNELS.LLM_GENERATE, provider, prompt, context),
     checkAvailability: () => invoke(IPC_CHANNELS.LLM_CHECK_AVAILABILITY),
   },
+  openExternal: (url: string) => invoke<void>(IPC_CHANNELS.OPEN_EXTERNAL, url),
 });

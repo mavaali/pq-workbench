@@ -238,19 +238,68 @@ export function App() {
             tab.activeQueryDoc || tab.mCode
           );
           if (!analysis.ready) {
-            setBindMissing(analysis.missing);
-            setBindBound(analysis.bound);
-            setBindError(null);
-            setPendingExec({
-              workspaceId: tab.workspaceId,
-              dataflowId: tab.dataflowId,
-              expression: tab.mCode,
-              queryName: tab.activeQueryName,
-              originalDocument: tab.activeQueryDoc,
-              tabId: tab.id,
-            });
-            setBindOpen(true);
-            return;
+            // Auto-bind path: if EVERY missing source has at least one
+            // authenticated candidate, pick the top-ranked authenticated
+            // one per source and bind silently — same UX PBI Desktop's
+            // Export Query Results provides. Modal still appears when any
+            // missing source has zero authenticated candidates or when
+            // there's ambiguity (multiple authenticated candidates with
+            // the same top rank — defer to user).
+            const autoPicks: string[] = [];
+            const seenPicks = new Set<string>();
+            let canAutoBind = analysis.missing.length > 0;
+            for (const m of analysis.missing as Array<{
+              candidates: Array<{ id: string; hasCredentials: boolean }>;
+            }>) {
+              const authd = m.candidates.filter((c) => c.hasCredentials);
+              if (authd.length === 0) {
+                canAutoBind = false;
+                break;
+              }
+              const top = authd[0];
+              if (!seenPicks.has(top.id)) {
+                autoPicks.push(top.id);
+                seenPicks.add(top.id);
+              }
+            }
+            if (canAutoBind) {
+              try {
+                await api.connections.bind(tab.workspaceId, tab.dataflowId, autoPicks);
+                // Fall through to executeQuery below — analyze is now satisfied.
+              } catch (e: unknown) {
+                // Auto-bind failed; fall back to the modal so the user can
+                // pick / retry / open Fabric manage-connections.
+                const msg = e instanceof Error ? e.message : String(e);
+                console.warn('[App] auto-bind failed, opening modal:', msg);
+                setBindMissing(analysis.missing);
+                setBindBound(analysis.bound);
+                setBindError(msg);
+                setPendingExec({
+                  workspaceId: tab.workspaceId,
+                  dataflowId: tab.dataflowId,
+                  expression: tab.mCode,
+                  queryName: tab.activeQueryName,
+                  originalDocument: tab.activeQueryDoc,
+                  tabId: tab.id,
+                });
+                setBindOpen(true);
+                return;
+              }
+            } else {
+              setBindMissing(analysis.missing);
+              setBindBound(analysis.bound);
+              setBindError(null);
+              setPendingExec({
+                workspaceId: tab.workspaceId,
+                dataflowId: tab.dataflowId,
+                expression: tab.mCode,
+                queryName: tab.activeQueryName,
+                originalDocument: tab.activeQueryDoc,
+                tabId: tab.id,
+              });
+              setBindOpen(true);
+              return;
+            }
           }
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -381,6 +430,7 @@ export function App() {
         onConfirm={handleBindConfirm}
         binding={binding}
         bindError={bindError}
+        workspaceId={pendingExec?.workspaceId || activeTab?.workspaceId}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
