@@ -136,7 +136,8 @@ export async function evaluateQuery(
   expression: string,
   topN = 100,
   queryName?: string,
-  originalDocument?: string
+  originalDocument?: string,
+  signal?: AbortSignal
 ): Promise<QueryResult> {
   const start = Date.now();
 
@@ -164,6 +165,7 @@ export async function evaluateQuery(
         QueryName: effectiveName,
         customMashupDocument: effectiveDoc,
       }),
+      signal,
     }
   );
 
@@ -189,9 +191,19 @@ export async function evaluateQuery(
     return parseJsonResult(data, topN, Date.now() - start);
   }
 
-  // Arrow binary response — parse with apache-arrow
+  // Arrow binary response — parse with apache-arrow. arrayBuffer() also
+  // respects the original AbortSignal.
   const bytes = await res.arrayBuffer();
   return parseArrowResult(new Uint8Array(bytes), topN, Date.now() - start);
+}
+
+/** Custom error class so the IPC layer (and the renderer) can distinguish
+ *  a user-initiated cancel from a real failure. */
+export class ExecuteCancelledError extends Error {
+  constructor() {
+    super('Query cancelled');
+    this.name = 'ExecuteCancelledError';
+  }
 }
 
 // ── Dataflow query browser ──
