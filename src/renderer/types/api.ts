@@ -31,6 +31,10 @@ export interface QueryResult {
   rows: Record<string, unknown>[];
   rowCount: number;
   executionTimeMs: number;
+  /** First row's value from the "PQ Arrow Metadata" column when present in
+   *  the executeQuery response. Hidden from the user-facing grid (#45) but
+   *  surfaced in Query Info as a diagnostic. */
+  pqArrowMetadata?: string;
 }
 
 export interface ColumnSchema {
