@@ -315,6 +315,27 @@ function wrapAsSection(expression: string, queryName: string): string {
 // them into the Data tab reads as unfinished tooling (#45).
 const HIDDEN_RESPONSE_COLUMNS = new Set<string>(['PQ Arrow Metadata']);
 
+/** Inspect a PQ Arrow Metadata payload for an embedded query error.
+ *  Fabric's executeQuery returns HTTP 200 even when the M evaluation
+ *  fails — the failure is wrapped inside the metadata column as JSON like
+ *  {"Error":"Credentials are required to connect to the Lakehouse source."}.
+ *  Returns the error string if found, or null if the payload is benign. */
+function extractMetadataError(metadata: string | undefined): string | null {
+  if (!metadata) return null;
+  try {
+    const parsed = JSON.parse(metadata);
+    if (parsed && typeof parsed === 'object') {
+      const err = (parsed as Record<string, unknown>).Error
+        ?? (parsed as Record<string, unknown>).error
+        ?? (parsed as Record<string, unknown>).errorMessage;
+      if (typeof err === 'string' && err.trim().length > 0) return err;
+    }
+  } catch {
+    /* not JSON; treat as benign diagnostic payload */
+  }
+  return null;
+}
+
 function parseArrowResult(
   bytes: Uint8Array,
   topN: number,
@@ -327,21 +348,28 @@ function parseArrowResult(
     type: String(f.type),
     nullable: f.nullable,
   }));
-  const dataColumns = allColumns.filter((c) => !HIDDEN_RESPONSE_COLUMNS.has(c.name));
-  // If filtering removes everything, fall back to showing all columns. This
-  // covers responses that contain ONLY metadata (e.g. queries that compute a
-  // single scalar and round-trip just the PQ Arrow Metadata column) so the
-  // user isn't staring at an empty grid (#45 follow-up).
-  const columns = dataColumns.length > 0 ? dataColumns : allColumns;
 
-  // Capture first non-null value of "PQ Arrow Metadata" for Query Info. Cheap;
-  // only looks at row 0 because in practice the value is constant per response.
+  // Capture first non-null value of "PQ Arrow Metadata" first — needed for
+  // error detection below and for surfacing the diagnostic in Query Info.
   let pqArrowMetadata: string | undefined;
   if (allColumns.some((c) => c.name === 'PQ Arrow Metadata') && table.numRows > 0) {
     const vec = table.getChild('PQ Arrow Metadata');
     const raw = vec ? vec.get(0) : null;
     if (raw != null) pqArrowMetadata = String(raw);
   }
+
+  // Fabric returns HTTP 200 with the M evaluation error wrapped in the
+  // metadata column. Surface it as a real error so the MessageBar shows
+  // the credential / source / syntax issue instead of an empty grid.
+  const metadataError = extractMetadataError(pqArrowMetadata);
+  if (metadataError) {
+    throw new Error(metadataError);
+  }
+
+  const dataColumns = allColumns.filter((c) => !HIDDEN_RESPONSE_COLUMNS.has(c.name));
+  // If filtering removes everything (response was only metadata, no error),
+  // fall back to showing all columns rather than an empty grid.
+  const columns = dataColumns.length > 0 ? dataColumns : allColumns;
 
   const rows: Record<string, unknown>[] = [];
   const limit = Math.min(table.numRows, topN);
@@ -383,13 +411,17 @@ function parseJsonResult(
     }));
   }
 
-  // Mirror the Arrow path: hide diagnostic columns from the grid, but only
-  // when there are other data columns to show (avoid empty-grid regression).
+  // Mirror the Arrow path: detect embedded errors first, then optionally
+  // strip the metadata column from the grid.
   let pqArrowMetadata: string | undefined;
   if (columns.some((c) => HIDDEN_RESPONSE_COLUMNS.has(c.name))) {
     if (rows.length > 0) {
       const raw = rows[0]['PQ Arrow Metadata'];
       if (raw != null) pqArrowMetadata = String(raw);
+    }
+    const metadataError = extractMetadataError(pqArrowMetadata);
+    if (metadataError) {
+      throw new Error(metadataError);
     }
     const filteredColumns = columns.filter((c) => !HIDDEN_RESPONSE_COLUMNS.has(c.name));
     if (filteredColumns.length > 0) {
