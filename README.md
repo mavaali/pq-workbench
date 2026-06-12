@@ -10,7 +10,7 @@ Write M code, or describe what you want in plain English and let AI generate it.
 |---|---|
 | **Execute M code** | Calls the Fabric Dataflow `executeQuery` API, parses Apache Arrow responses |
 | **Browse queries** | Reads the dataflow definition, lists named queries in a sidebar — click to load |
-| **AI Assist** | GitHub Copilot CLI generates M from natural language. Context Preview shows exactly what's sent. |
+| **AI Assist** | GitHub Copilot CLI **or** Claude CLI generates M from natural language. Context Preview shows exactly what's sent. |
 | **Browse Fabric** | Searchable workspace + dataflow pickers, alphabetically sorted |
 | **Inspect results** | Sortable data grid, schema tab (column names/types), query info tab |
 
@@ -21,18 +21,18 @@ Write M code, or describe what you want in plain English and let AI generate it.
 - **Node.js 18+** ([download](https://nodejs.org))
 - **Git** (to clone)
 - A **Microsoft Fabric** workspace with at least one dataflow
-- *(Optional)* [GitHub Copilot CLI](https://gh.io/copilot-cli) for AI Assist
+- *(Optional, for AI Assist)* either:
+  - [GitHub Copilot CLI](https://gh.io/copilot-cli), or
+  - [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli)
 
 ### Install and run
 
 **Option 1: Download a release** (no dev tools needed)
 
 Go to [Releases](https://github.com/mavaali/pq-workbench/releases/latest) and download:
-- **macOS:** `.dmg` — after install, right-click the app → Open (first launch only — the app isn't code-signed yet)
+- **macOS:** `.dmg` (signed + notarized)
 - **Windows:** `.exe` (portable or installer)
 - **Linux:** `.AppImage`
-
-> **macOS Gatekeeper note:** If you see "app is damaged," run: `xattr -cr /Applications/PQ\ Workbench.app`
 
 **Option 2: Build from source**
 
@@ -76,10 +76,11 @@ You have an M expression and want to see what it returns against live Fabric dat
 You need data but don't know M syntax.
 
 1. Toggle **AI Assist** in the toolbar
-2. Type: *"Show top 10 customers by revenue from the Sales table"*
-3. Click **Generate M** → review the Context Preview → click **Approve & Send**
-4. Copilot CLI generates M code → it appears in the editor
-5. Review/tweak the M → click Run
+2. Choose your provider (Copilot CLI or Claude CLI)
+3. Type: *"Show top 10 customers by revenue from the Sales table"*
+4. Click **Generate M** → review the Context Preview → click **Approve & Send**
+5. The CLI generates M code → it appears in the editor
+6. Review/tweak the M → click Run
 
 ### 3. Debug an existing dataflow query
 
@@ -116,7 +117,8 @@ You want to see what's in a Fabric Lakehouse table before building a full datafl
 │  │ Query Browser│  │ (executeQuery,       │  │
 │  │ AI Assist    │  │  getDefinition)      │  │
 │  └─────────────┘  │                      │  │
-│                    │ Copilot CLI          │  │
+│                    │ Copilot CLI /        │  │
+│                    │ Claude CLI           │  │
 │                    │ (subprocess)         │  │
 │                    └──────────────────────┘  │
 └─────────────────────────────────────────────┘
@@ -130,7 +132,7 @@ You want to see what's in a Fabric Lakehouse table before building a full datafl
 | API scopes | `analysis.windows.net/powerbi/api/.default` | Fabric API accepts PBI tokens for executeQuery |
 | Response format | Apache Arrow IPC | Parsed client-side with `apache-arrow` |
 | M code format | Auto-wrapped as section document | `executeQuery` requires `section Section1; shared name = <expr>;` |
-| LLM integration | CLI subprocess (`copilot -p`) | Zero infra, user owns auth + cost |
+| LLM integration | CLI subprocess (`copilot -p` or `claude -p`) | Zero infra, user owns auth + cost, pluggable backend |
 | Editor | Monaco | M syntax highlighting, shared codebase with VS Code |
 
 ## Security
@@ -150,7 +152,7 @@ You want to see what's in a Fabric Lakehouse table before building a full datafl
 - **MSAL Node** — Azure AD authentication
 - **Apache Arrow** — result parsing
 - **Allotment** — resizable split panels
-- **GitHub Copilot CLI** — NL → M generation
+- **GitHub Copilot CLI** or **Claude CLI** — NL → M generation (pluggable)
 
 ## Contributing
 
@@ -166,15 +168,3 @@ npm run typecheck    # Type check without emitting
 
 MIT
 
-## Quick Start
-
-```bash
-git clone <repo-url> pq-workbench
-cd pq-workbench
-npm install
-npm run dev
-```
-
-## License
-
-MIT
