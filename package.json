@@ -1,6 +1,6 @@
 {
   "name": "pq-workbench",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Desktop app for executing Power Query (M code) against Microsoft Fabric workspaces",
   "main": "dist/main/main.js",
   "license": "MIT",
