@@ -1,5 +1,8 @@
 import { getToken } from './auth';
 import { tableFromIPC } from 'apache-arrow';
+import { isFabricCapableSku } from './fabric-sku';
+
+export { isFabricCapableSku } from './fabric-sku';
 
 const BASE_URL = 'https://api.fabric.microsoft.com/v1';
 
@@ -66,15 +69,6 @@ export interface FabricEligibility {
   capacityCount: number;
   fabricCapableCount: number;
   reason?: string;
-}
-
-const FABRIC_SKU_PREFIXES = ['F', 'P', 'FT'];
-
-export function isFabricCapableSku(sku: string | undefined): boolean {
-  if (!sku) return false;
-  const upper = sku.toUpperCase();
-  if (upper.startsWith('A')) return false;
-  return FABRIC_SKU_PREFIXES.some((p) => upper.startsWith(p));
 }
 
 export async function listCapacities(): Promise<FabricCapacity[]> {
