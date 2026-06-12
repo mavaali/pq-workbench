@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  Button,
-  Text,
-  tokens,
-} from '@fluentui/react-components';
-import { Code24Regular } from '@fluentui/react-icons';
+import { Text, tokens } from '@fluentui/react-components';
 import type { DataflowQuery } from '../types/api';
 
 interface Props {
@@ -27,16 +22,10 @@ export function QueryBrowser({ queries, selectedQueryName, hasDataflow, onSelect
           height: '100%',
         }}
       >
-        <Text
-          weight="semibold"
-          size={300}
-          style={{ marginBottom: 8 }}
-        >
-          Queries
-        </Text>
+        <div className="pq-sidebar-heading">Queries</div>
         <Text
           size={200}
-          style={{ color: tokens.colorNeutralForeground3 }}
+          style={{ color: tokens.colorNeutralForeground3, padding: '0 14px' }}
         >
           Select a dataflow to browse its queries.
         </Text>
@@ -54,16 +43,10 @@ export function QueryBrowser({ queries, selectedQueryName, hasDataflow, onSelect
           height: '100%',
         }}
       >
-        <Text
-          weight="semibold"
-          size={300}
-          style={{ marginBottom: 8 }}
-        >
-          Queries
-        </Text>
+        <div className="pq-sidebar-heading">Queries</div>
         <Text
           size={200}
-          style={{ color: tokens.colorNeutralForeground3, fontStyle: 'italic' }}
+          style={{ color: tokens.colorNeutralForeground3, fontStyle: 'italic', padding: '0 14px' }}
         >
           No queries found. The dataflow may be empty, or you may need Contributor
           access on this workspace.
@@ -81,32 +64,28 @@ export function QueryBrowser({ queries, selectedQueryName, hasDataflow, onSelect
         overflow: 'hidden',
       }}
     >
-      <Text
-        weight="semibold"
-        size={300}
-        style={{ padding: '12px 16px 8px', flexShrink: 0 }}
-      >
-        Queries
-      </Text>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px' }}>
+      <div className="pq-sidebar-heading" style={{ flexShrink: 0 }}>Queries</div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0 8px' }}>
         {queries.map((q) => {
           const isSelected = q.name === selectedQueryName;
           return (
-            <Button
+            <div
               key={q.name}
-              appearance={isSelected ? 'primary' : 'subtle'}
-              icon={<Code24Regular />}
-              onClick={() => onSelectQuery(q)}
+              className="pq-query-item"
+              data-selected={isSelected ? 'true' : undefined}
+              role="button"
+              tabIndex={0}
               aria-current={isSelected ? 'true' : undefined}
-              style={{
-                width: '100%',
-                justifyContent: 'flex-start',
-                textAlign: 'left',
-                minHeight: 32,
+              onClick={() => onSelectQuery(q)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectQuery(q);
+                }
               }}
             >
               {q.name}
-            </Button>
+            </div>
           );
         })}
       </div>

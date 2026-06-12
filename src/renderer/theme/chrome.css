@@ -1,0 +1,98 @@
+/* Chrome identity layer. Fluent tokens handle color; this handles the
+   places Fluent components don't reach: tab accent, dirty dot, sidebar
+   selection, the results grid. Class names assume your existing structure —
+   rename to match, the rules are the point. */
+
+/* Everything code-adjacent is mono: identifiers and measurements, not prose. */
+.pq-tab-label,
+.pq-query-item,
+.pq-grid,
+.pq-context-path {
+  font-family: var(--fontFamilyMonospace);
+}
+
+/* --- Tabs: active accent underline + dirty dot --- */
+.pq-tab {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--colorNeutralForeground3);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.pq-tab:hover {
+  color: var(--colorNeutralForeground2);
+}
+.pq-tab[data-active="true"] {
+  color: var(--colorNeutralForeground1);
+  border-bottom-color: var(--colorBrandForeground1);
+}
+.pq-tab[data-dirty="true"] .pq-tab-label::after {
+  content: " \25CF";
+  color: var(--colorBrandForeground1);
+  font-size: 9px;
+  vertical-align: 1px;
+}
+
+/* --- Query sidebar: selection state, no icon noise --- */
+.pq-query-item {
+  display: block;
+  padding: 5px 14px;
+  font-size: 12px;
+  color: var(--colorNeutralForeground2);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pq-query-item:hover {
+  background: var(--colorNeutralBackground1Hover);
+}
+.pq-query-item[data-selected="true"] {
+  color: var(--colorNeutralForeground1);
+  background: var(--colorNeutralBackground1Pressed);
+  border-left-color: var(--colorBrandForeground1);
+}
+
+.pq-sidebar-heading {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--colorNeutralForeground3);
+  padding: 0 14px;
+  margin: 10px 0 6px;
+  font-family: var(--fontFamilyBase);
+}
+
+/* --- Results grid: data view, not M-literal view --- */
+.pq-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.pq-grid th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--colorNeutralForeground3);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--colorNeutralStroke2);
+}
+.pq-grid th .pq-type-hint {
+  font-size: 10px;
+  color: var(--colorNeutralForeground4);
+  margin-left: 6px;
+}
+.pq-grid td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--colorNeutralStroke3);
+  color: var(--colorNeutralForeground1);
+}
+/* Numbers right-align; render values unquoted — the Schema tab owns types. */
+.pq-grid td[data-type="number"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pq-grid td[data-null="true"] {
+  color: var(--colorNeutralForeground4);
+  font-style: italic;
+}
