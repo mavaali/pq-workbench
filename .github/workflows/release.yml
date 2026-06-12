@@ -39,10 +39,27 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Stage Mac signing certificate
+        if: matrix.platform == 'mac'
+        env:
+          MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
+        run: |
+          echo -n "$MAC_CERT_P12_BASE64" | base64 --decode > $RUNNER_TEMP/build_cert.p12
+          echo "CSC_LINK=$RUNNER_TEMP/build_cert.p12" >> $GITHUB_ENV
+
       - name: Package (${{ matrix.platform }})
         run: npx electron-builder --${{ matrix.platform }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS code signing — electron-builder consumes CSC_LINK +
+          # CSC_KEY_PASSWORD automatically. CSC_LINK is set by the staging
+          # step above (mac job only); CSC_KEY_PASSWORD is the .p12 password.
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          # macOS notarization (notarytool path). package.json sets mac.notarize
+          # = true so electron-builder triggers notarytool after signing.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
