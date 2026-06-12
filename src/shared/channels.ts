@@ -19,6 +19,7 @@ export const IPC_CHANNELS = {
   CONNECTIONS_DUMP_INSPECT: 'connections:dump-inspect',
   CONNECTIONS_ANALYZE: 'connections:analyze',
   EXPORT_CSV: 'export:csv',
+  OPEN_EXTERNAL: 'open-external',
   LLM_GENERATE: 'llm:generate',
   LLM_CHECK_AVAILABILITY: 'llm:check-availability',
 } as const;
