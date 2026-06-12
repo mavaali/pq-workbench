@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
+import type * as Monaco from 'monaco-editor';
 import { Toolbar, ToolbarButton } from '@fluentui/react-components';
 import { PlayRegular } from '@fluentui/react-icons';
 import {
@@ -7,6 +8,10 @@ import {
   attachAnalysisToModel,
   type AnalysisHandle,
 } from '../lsp/powerquery';
+import {
+  applyExecuteQueryErrorMarker,
+  clearExecuteQueryErrorMarkers,
+} from '../lsp/apiErrorMarkers';
 
 interface Props {
   value: string;
@@ -14,10 +19,14 @@ interface Props {
   onRun: () => void;
   loading: boolean;
   dark: boolean;
+  /** Error message from the most recent executeQuery call, or null. When set
+   *  and a position is parseable, a marker is placed on the editor. */
+  apiError?: string | null;
 }
 
-export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
+export function QueryEditor({ value, onChange, onRun, loading, dark, apiError }: Props) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const monacoRef = useRef<typeof Monaco | null>(null);
   const isSettingValue = useRef(false);
   const analysisHandleRef = useRef<AnalysisHandle | null>(null);
 
@@ -40,8 +49,25 @@ export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
     }
   }, [value]);
 
+  // Surface executeQuery errors as markers when a position is parseable.
+  // Only re-runs when the apiError changes; user typing clears via onChange below
+  // (we don't re-apply on every keystroke because the position would be stale).
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    const model = editor.getModel();
+    if (!model) return;
+    if (apiError) {
+      applyExecuteQueryErrorMarker(monaco, model, apiError);
+    } else {
+      clearExecuteQueryErrorMarkers(monaco, model);
+    }
+  }, [apiError]);
+
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+    monacoRef.current = monaco;
     // Set initial value explicitly
     editor.setValue(value);
 
@@ -115,7 +141,17 @@ export function QueryEditor({ value, onChange, onRun, loading, dark }: Props) {
           theme={dark ? 'vs-dark' : 'light'}
           value={value}
           onChange={(v) => {
-            if (!isSettingValue.current) onChange(v ?? '');
+            if (!isSettingValue.current) {
+              onChange(v ?? '');
+              // Clear stale executeQuery marker on user edit — position no
+              // longer matches and we don't want a phantom red squiggle.
+              const editor = editorRef.current;
+              const monaco = monacoRef.current;
+              if (editor && monaco) {
+                const model = editor.getModel();
+                if (model) clearExecuteQueryErrorMarkers(monaco, model);
+              }
+            }
           }}
           onMount={handleMount}
           options={{

@@ -489,6 +489,7 @@ export function App() {
                     onRun={handleRun}
                     loading={tabLoading}
                     dark={dark}
+                    apiError={error}
                   />
                 </Allotment.Pane>
               </Allotment>
