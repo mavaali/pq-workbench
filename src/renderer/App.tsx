@@ -34,11 +34,13 @@ import { DangerousFunctionBanner } from './components/DangerousFunctionBanner';
 import { QueryBrowser } from './components/QueryBrowser';
 import { BindConnectionsModal } from './components/BindConnectionsModal';
 import { EditorTabs } from './components/EditorTabs';
+import { StatusBar } from './components/StatusBar';
 import { useFabric } from './hooks/useFabric';
 import { useEditorTabs } from './hooks/useEditorTabs';
-import type { LlmAvailability } from './types/api';
+import type { LlmAvailability, QueryResult } from './types/api';
 import { computeTabNameBackfill, DEFAULT_M_CODE, isTabDirty } from './types/tabs';
 import { pqDarkTheme, pqLightTheme } from './theme/fluentTheme';
+import { exportQueryResultAsCsv } from './utils/exportCsv';
 
 const DARK_MODE_STORAGE_KEY = 'pqwb:dark-mode';
 
@@ -421,6 +423,18 @@ export function App() {
     executionIdsRef.current.delete(activeTabId);
   }, [activeTabId, cancelExecute]);
 
+  const handleExportCsv = useCallback(
+    async (result: QueryResult, suggestedName: string) => {
+      const r = await exportQueryResultAsCsv(result, suggestedName);
+      if (r.kind === 'error') {
+        setError(`Export failed: ${r.message}`);
+      }
+      // Saved / downloaded / cancelled are silent — no top-of-app toast for the
+      // happy path; native Save dialog already gave feedback.
+    },
+    [setError]
+  );
+
   const handleBindConfirm = useCallback(
     async (connectionIds: string[]) => {
       if (!pendingExec) return;
@@ -772,10 +786,7 @@ export function App() {
                     </div>
                   )}
                   {!tabLoading && resultsTab === 'data' && (
-                    <ResultsPanel
-                      result={activeTab?.queryResult ?? null}
-                      suggestedName={activeTab?.activeQueryName || 'query-results'}
-                    />
+                    <ResultsPanel result={activeTab?.queryResult ?? null} />
                   )}
                   {!tabLoading && resultsTab === 'schema' && (
                     <SchemaPanel result={activeTab?.queryResult ?? null} />
@@ -788,6 +799,24 @@ export function App() {
             </Allotment.Pane>
           </Allotment>
         </div>
+        <StatusBar
+          connected={authStatus.signedIn}
+          identity={authStatus.userName}
+          role="unknown"
+          lastRun={
+            activeTab?.queryResult
+              ? {
+                  rows: activeTab.queryResult.rowCount,
+                  durationMs: activeTab.queryResult.executionTimeMs,
+                }
+              : undefined
+          }
+          onExportCsv={
+            activeTab?.queryResult
+              ? () => handleExportCsv(activeTab.queryResult!, activeTab.activeQueryName || 'query-results')
+              : undefined
+          }
+        />
       </div>
     </FluentProvider>
   );
