@@ -197,10 +197,10 @@ export function App() {
     async (tabId: string) => {
       const tab = tabs.find((t) => t.id === tabId);
       if (!tab) return;
-      if (!tab.workspaceId || !tab.dataflowId) {
-        setError('Select a workspace and dataflow first');
-        return;
-      }
+      // Defense in depth: QueryEditor disables the Run affordance when there
+      // is no bound dataflow (#44), but we re-check here in case any other
+      // path (toolbar shortcut, AI Assist regen, etc.) reaches runForTab.
+      if (!tab.workspaceId || !tab.dataflowId) return;
 
       const api = (window as any).pqWorkbench;
       if (api?.connections?.analyze) {
@@ -536,6 +536,15 @@ export function App() {
                     loading={tabLoading}
                     dark={dark}
                     apiError={error}
+                    runDisabledReason={
+                      !authStatus.signedIn
+                        ? 'Sign in to run'
+                        : !activeTab?.workspaceId
+                        ? 'Select a workspace and dataflow to run'
+                        : !activeTab?.dataflowId
+                        ? 'Select a dataflow to run'
+                        : null
+                    }
                   />
                 </Allotment.Pane>
               </Allotment>
