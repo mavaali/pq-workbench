@@ -3,6 +3,7 @@ import { Button, Caption1 } from '@fluentui/react-components';
 import { ArrowDownload24Regular } from '@fluentui/react-icons';
 import type { QueryResult } from '../types/api';
 import { queryResultToCsv } from '../utils/csv';
+import { formatCellValue } from '../utils/formatCell';
 
 interface Props {
   result: QueryResult | null;
@@ -113,7 +114,6 @@ export function ResultsPanel({ result, suggestedName }: Props) {
           width: '100%',
           borderCollapse: 'collapse',
           fontSize: 13,
-          fontFamily: 'monospace',
         }}
       >
         <thead>
@@ -141,19 +141,26 @@ export function ResultsPanel({ result, suggestedName }: Props) {
         <tbody>
           {sorted.map((row, i) => (
             <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
-              {result.columns.map((col) => (
-                <td
-                  key={col.name}
-                  style={{
-                    padding: '4px 12px',
-                    whiteSpace: 'nowrap',
-                    color: row[col.name] == null ? '#999' : undefined,
-                    fontStyle: row[col.name] == null ? 'italic' : undefined,
-                  }}
-                >
-                  {row[col.name] == null ? 'null' : String(row[col.name])}
-                </td>
-              ))}
+              {result.columns.map((col) => {
+                const cell = formatCellValue(row[col.name]);
+                return (
+                  <td
+                    key={col.name}
+                    style={{
+                      padding: '4px 12px',
+                      whiteSpace: 'nowrap',
+                      textAlign: cell.align,
+                      // Right-align numerics get a monospace font so digits
+                      // line up vertically — classic Excel convention.
+                      fontFamily: cell.align === 'right' ? 'monospace' : undefined,
+                      color: cell.isNull ? '#999' : undefined,
+                      fontStyle: cell.isNull ? 'italic' : undefined,
+                    }}
+                  >
+                    {cell.display}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
