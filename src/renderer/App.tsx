@@ -468,11 +468,11 @@ export function App() {
                 <Allotment.Pane
                   minSize={120}
                   preferredSize={200}
-                  visible={!!activeTab?.dataflowId}
                 >
                   <QueryBrowser
                     queries={queries}
                     selectedQueryName={activeTab?.activeQueryName}
+                    hasDataflow={!!activeTab?.dataflowId}
                     onSelectQuery={(q) => {
                       const wsId = activeTab?.workspaceId ?? '';
                       const dfId = activeTab?.dataflowId ?? '';
