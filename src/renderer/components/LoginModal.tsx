@@ -34,7 +34,7 @@ const TITLE_GRADIENT =
 
 const useStyles = makeStyles({
   surface: {
-    maxWidth: '760px',
+    maxWidth: '520px',
     width: '92vw',
     padding: '0',
     borderRadius: '20px',
@@ -84,29 +84,21 @@ const useStyles = makeStyles({
     marginTop: '4px',
   },
   cards: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
   },
   card: {
     position: 'relative',
     border: `1px solid ${tokens.colorNeutralStroke2}`,
     borderRadius: '14px',
-    padding: '24px',
-    paddingTop: '28px',
+    padding: '28px',
     display: 'flex',
     flexDirection: 'column',
     gap: '14px',
     backgroundColor: tokens.colorNeutralBackground1,
     boxShadow: tokens.shadow2,
-    transitionProperty: 'transform, box-shadow',
-    transitionDuration: '180ms',
-    transitionTimingFunction: 'cubic-bezier(0.33, 1, 0.68, 1)',
     overflow: 'hidden',
-    ':hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: tokens.shadow16,
-    },
     '::before': {
       content: '""',
       position: 'absolute',
@@ -128,6 +120,44 @@ const useStyles = makeStyles({
       height: '3px',
       background: TEAL_GRADIENT,
     },
+  },
+  aiHint: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '12px 16px',
+    fontSize: '13px',
+    color: tokens.colorNeutralForeground3,
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: '10px',
+    backgroundColor: tokens.colorNeutralBackground2,
+  },
+  aiHintIcon: {
+    color: tokens.colorPaletteLightTealForeground2,
+    flexShrink: 0,
+  },
+  aiHintText: {
+    flex: 1,
+  },
+  aiDetails: {
+    // Native <details>; we style only the inner panel via aiDetailsContent.
+    width: '100%',
+  },
+  aiSummary: {
+    listStyle: 'none',
+    cursor: 'pointer',
+    color: tokens.colorBrandForegroundLink,
+    fontSize: '13px',
+    fontWeight: 500,
+    '::-webkit-details-marker': { display: 'none' },
+    ':hover': { textDecoration: 'underline' },
+  },
+  aiDetailsContent: {
+    marginTop: '12px',
+    padding: '16px',
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: '10px',
+    backgroundColor: tokens.colorNeutralBackground1,
   },
   cardTitle: {
     fontSize: '17px',
@@ -278,7 +308,7 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
           </div>
 
           <DialogContent className={styles.cards}>
-            {/* Fabric card */}
+            {/* Fabric card — the modal's sole purpose */}
             <div className={mergeClasses(styles.card, styles.fabricCard)}>
               <span
                 className={styles.badge}
@@ -293,8 +323,6 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
               <p className={styles.cardDesc}>
                 Required to execute queries against your workspaces and dataflows.
               </p>
-
-              <div style={{ flex: 1, minHeight: 8 }} />
 
               {!signingIn && !authStatus.signedIn && (
                 <button
@@ -330,80 +358,62 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
               )}
             </div>
 
-            {/* AI Assist card */}
-            <div className={styles.card}>
-              <span
-                className={styles.badge}
-                style={{
-                  color: tokens.colorNeutralForeground3,
-                  backgroundColor: tokens.colorNeutralBackground3,
-                }}
-              >
-                Optional
+            {/* AI Assist — collapsed by default; details discloses provider rows */}
+            <div className={styles.aiHint}>
+              <Sparkle24Filled className={styles.aiHintIcon} />
+              <span className={styles.aiHintText}>
+                <strong style={{ fontWeight: 600 }}>AI Assist</strong> is optional — set up anytime via the toolbar toggle.
               </span>
-              <h3 className={styles.cardTitle}>
-                <Sparkle24Filled
-                  style={{
-                    verticalAlign: 'middle',
-                    marginRight: 6,
-                    color: tokens.colorPaletteLightTealForeground2,
-                  }}
-                />
-                AI Assist
-              </h3>
-              <p className={styles.cardDesc}>
-                Generate M code from natural language using a local AI CLI.
-              </p>
-
-              <div style={{ flex: 1, minHeight: 4 }} />
-
-              <div>
-                {PROVIDERS.map(({ id, name, installUrl, signInCmd }) => {
-                  const status = llmAvailability?.[id];
-                  const needsSignIn =
-                    status?.cliInstalled && status.auth !== 'authenticated';
-                  return (
-                    <div key={id}>
-                      <div className={styles.cliRow}>
-                        <span className={styles.cliName}>{name}</span>
-                        {!status ? (
-                          <Spinner size="extra-tiny" />
-                        ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                            <ProviderStatusIcons
-                              status={status}
-                              size="small"
-                              providerLabel={name}
-                            />
-                            {!status.cliInstalled && (
-                              <Link href={installUrl} target="_blank" style={{ fontSize: 12 }}>
-                                Install
-                              </Link>
-                            )}
-                          </span>
+              <details className={styles.aiDetails}>
+                <summary className={styles.aiSummary}>Set up now</summary>
+                <div className={styles.aiDetailsContent}>
+                  {PROVIDERS.map(({ id, name, installUrl, signInCmd }) => {
+                    const status = llmAvailability?.[id];
+                    const needsSignIn =
+                      status?.cliInstalled && status.auth !== 'authenticated';
+                    return (
+                      <div key={id}>
+                        <div className={styles.cliRow}>
+                          <span className={styles.cliName}>{name}</span>
+                          {!status ? (
+                            <Spinner size="extra-tiny" />
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                              <ProviderStatusIcons
+                                status={status}
+                                size="small"
+                                providerLabel={name}
+                              />
+                              {!status.cliInstalled && (
+                                <Link href={installUrl} target="_blank" style={{ fontSize: 12 }}>
+                                  Install
+                                </Link>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        {needsSignIn && (
+                          <div className={styles.signInHint}>
+                            <span className={styles.signInCmd}>{signInCmd}</span>
+                            <Tooltip
+                              content={copiedCmd === signInCmd ? 'Copied!' : 'Copy command'}
+                              relationship="label"
+                            >
+                              <Button
+                                appearance="subtle"
+                                size="small"
+                                icon={<Copy16Regular />}
+                                aria-label={`Copy sign-in command for ${name}`}
+                                onClick={() => handleCopy(signInCmd)}
+                              />
+                            </Tooltip>
+                          </div>
                         )}
                       </div>
-                      {needsSignIn && (
-                        <div className={styles.signInHint}>
-                          <span className={styles.signInCmd}>{signInCmd}</span>
-                          <Tooltip
-                            content={copiedCmd === signInCmd ? 'Copied!' : 'Copy command'}
-                            relationship="label"
-                          >
-                            <Button
-                              appearance="subtle"
-                              size="small"
-                              icon={<Copy16Regular />}
-                              aria-label={`Copy sign-in command for ${name}`}
-                              onClick={() => handleCopy(signInCmd)}
-                            />
-                          </Tooltip>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </details>
             </div>
           </DialogContent>
         </DialogBody>
