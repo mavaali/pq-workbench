@@ -71,6 +71,7 @@
     "@fabric-msft/svg-icons": "^8.0.1",
     "@fluentui/react-components": "^9.56.0",
     "@fluentui/react-icons": "^2.0.268",
+    "@fontsource/jetbrains-mono": "^5.2.8",
     "@microsoft/powerquery-language-services": "^1.0.0",
     "@monaco-editor/react": "^4.7.0",
     "allotment": "^1.20.5",

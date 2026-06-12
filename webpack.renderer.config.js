@@ -28,6 +28,13 @@ module.exports = (env, argv) => {
           test: /\.css$/,
           use: ['style-loader', 'css-loader'],
         },
+        {
+          test: /\.(woff2?|ttf|eot|otf)$/,
+          type: 'asset/resource',
+          generator: {
+            filename: 'fonts/[name][hash][ext]',
+          },
+        },
       ],
     },
     plugins: [

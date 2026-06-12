@@ -2,6 +2,11 @@ import { createRoot } from 'react-dom/client';
 import { loader } from '@monaco-editor/react';
 import { App } from './App';
 
+// Bundle JetBrains Mono so the editor + tab labels + grid render consistently
+// on macOS / Windows / Linux. ~95KB woff2, weights 400 and 500.
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+
 // Configure Monaco to load from node_modules instead of CDN
 // This avoids CSP issues in Electron
 loader.config({
