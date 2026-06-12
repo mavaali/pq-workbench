@@ -36,7 +36,7 @@ export function DataflowPicker({ dataflows, value, onChange, onCreateNew }: Prop
         aria-label="Dataflow"
       />
       <Combobox
-        placeholder="Dataflow…"
+        placeholder="Search dataflows…"
         size="small"
         value={query || selectedName}
         selectedOptions={value ? [value] : []}
