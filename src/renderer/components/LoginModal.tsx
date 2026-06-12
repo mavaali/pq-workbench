@@ -383,6 +383,7 @@ export function LoginModal({ authStatus, onSignIn, llmAvailability }: Props) {
                                 status={status}
                                 size="small"
                                 providerLabel={name}
+                                showText
                               />
                               {!status.cliInstalled && (
                                 <Link href={installUrl} target="_blank" style={{ fontSize: 12 }}>
