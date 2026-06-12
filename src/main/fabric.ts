@@ -30,6 +30,10 @@ export interface QueryResult {
   rows: Record<string, unknown>[];
   rowCount: number;
   executionTimeMs: number;
+  /** First row's value from the "PQ Arrow Metadata" column when present in
+   *  the executeQuery response. Hidden from the user-facing grid (#45) but
+   *  surfaced in Query Info as a diagnostic. */
+  pqArrowMetadata?: string;
 }
 
 async function fabricFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -294,6 +298,11 @@ function wrapAsSection(expression: string, queryName: string): string {
   return doc;
 }
 
+// Names of columns that Fabric's executeQuery injects but the user shouldn't
+// see in the grid. They carry diagnostic metadata, not query data — leaking
+// them into the Data tab reads as unfinished tooling (#45).
+const HIDDEN_RESPONSE_COLUMNS = new Set<string>(['PQ Arrow Metadata']);
+
 function parseArrowResult(
   bytes: Uint8Array,
   topN: number,
@@ -301,11 +310,21 @@ function parseArrowResult(
 ): QueryResult {
   const table = tableFromIPC(bytes);
 
-  const columns: ColumnSchema[] = table.schema.fields.map((f) => ({
+  const allColumns: ColumnSchema[] = table.schema.fields.map((f) => ({
     name: f.name,
     type: String(f.type),
     nullable: f.nullable,
   }));
+  const columns = allColumns.filter((c) => !HIDDEN_RESPONSE_COLUMNS.has(c.name));
+
+  // Capture first non-null value of "PQ Arrow Metadata" for Query Info. Cheap;
+  // only looks at row 0 because in practice the value is constant per response.
+  let pqArrowMetadata: string | undefined;
+  if (allColumns.some((c) => c.name === 'PQ Arrow Metadata') && table.numRows > 0) {
+    const vec = table.getChild('PQ Arrow Metadata');
+    const raw = vec ? vec.get(0) : null;
+    if (raw != null) pqArrowMetadata = String(raw);
+  }
 
   const rows: Record<string, unknown>[] = [];
   const limit = Math.min(table.numRows, topN);
@@ -318,7 +337,7 @@ function parseArrowResult(
     rows.push(row);
   }
 
-  return { columns, rows, rowCount: table.numRows, executionTimeMs: elapsedMs };
+  return { columns, rows, rowCount: table.numRows, executionTimeMs: elapsedMs, pqArrowMetadata };
 }
 
 function parseJsonResult(
@@ -337,7 +356,7 @@ function parseJsonResult(
       }))
     : [];
 
-  const rows = Array.isArray(rawRows) ? rawRows.slice(0, topN) : [];
+  let rows = Array.isArray(rawRows) ? rawRows.slice(0, topN) : [];
 
   if (columns.length === 0 && rows.length > 0) {
     columns = Object.keys(rows[0]).map((key) => ({
@@ -347,5 +366,19 @@ function parseJsonResult(
     }));
   }
 
-  return { columns, rows, rowCount: rawRows.length, executionTimeMs: elapsedMs };
+  // Mirror the Arrow path: hide diagnostic columns from the grid.
+  let pqArrowMetadata: string | undefined;
+  if (columns.some((c) => HIDDEN_RESPONSE_COLUMNS.has(c.name))) {
+    if (rows.length > 0) {
+      const raw = rows[0]['PQ Arrow Metadata'];
+      if (raw != null) pqArrowMetadata = String(raw);
+    }
+    columns = columns.filter((c) => !HIDDEN_RESPONSE_COLUMNS.has(c.name));
+    rows = rows.map((r) => {
+      const { ['PQ Arrow Metadata']: _omit, ...rest } = r;
+      return rest;
+    });
+  }
+
+  return { columns, rows, rowCount: rawRows.length, executionTimeMs: elapsedMs, pqArrowMetadata };
 }
