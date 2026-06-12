@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Combobox, Option, tokens } from '@fluentui/react-components';
+import { Combobox, Option, Tooltip, tokens } from '@fluentui/react-components';
 import { AddRegular } from '@fluentui/react-icons';
 import DataflowGen224Item from '@fabric-msft/svg-icons/DataflowGen224Item';
 import type { FabricDataflow } from '../types/api';
@@ -31,10 +31,14 @@ export function DataflowPicker({ dataflows, value, onChange, onCreateNew }: Prop
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <DataflowGen224Item
-        style={{ width: 18, height: 18, flexShrink: 0 }}
-        aria-label="Dataflow"
-      />
+      <Tooltip content="Dataflow" relationship="label" withArrow>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <DataflowGen224Item
+            style={{ width: 18, height: 18, flexShrink: 0 }}
+            aria-label="Dataflow"
+          />
+        </span>
+      </Tooltip>
       <Combobox
         placeholder="Search dataflows…"
         size="small"
