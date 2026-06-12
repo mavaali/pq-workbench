@@ -123,6 +123,19 @@ export function QueryEditor({
       monacoThemesRegistered = true;
     }
 
+    // JetBrains Mono loads asynchronously via @fontsource @font-face with
+    // font-display: swap. Monaco measures glyph metrics at editor-create time
+    // and never re-measures on a font swap, so without this it permanently
+    // uses fallback (Menlo / SF Mono) metrics even after the font loads.
+    // Trigger an explicit load + remeasure once the font is ready.
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.load('14px "JetBrains Mono"').then(() => {
+        monaco.editor.remeasureFonts();
+      }).catch(() => {
+        /* fontset failed; fallback stack handles it */
+      });
+    }
+
     // Register M language (basic tokenization). The LSP module adds completion,
     // hover, and diagnostics on top of this.
     //
