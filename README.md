@@ -102,6 +102,17 @@ You want to see what's in a Fabric Lakehouse table before building a full datafl
 3. Run it — inspect schema and sample rows
 4. Iterate until you have the right shape, then move the M to your production dataflow
 
+## Safety
+
+PQ Workbench is designed to run arbitrary M code against your production Fabric workspaces. That's a sharp tool, so the safety story leads:
+
+- **Context Preview** — every AI Assist call shows you the exact prompt + context before it leaves your machine. No "trust the LLM" black box.
+- **Dangerous function linter** — warns before executing M that uses `Web.Contents`, `File.Contents`, `Sql.Database`, `AdoDotNet.Query`, `Expression.Evaluate`, or other shell-equivalent calls.
+- **No secrets stored locally** — auth tokens stay in the OS keychain via MSAL; LLM credentials stay with the CLI tools (`gh auth`, `claude login`).
+- **Electron hardening** — `contextIsolation: true`, `nodeIntegration: false`, `webSecurity: true`. The renderer can't reach Node APIs directly.
+- **IPC allowlist** — every renderer↔main channel is explicitly enumerated; unknown channels are rejected at the preload layer.
+- **Connection binding is explicit** — the app refuses to run a query when the dataflow's bound connections don't actually have credentials for the data sources in the M code; it surfaces a picker with authenticated alternatives instead of silently failing.
+
 ## Architecture
 
 ```
@@ -135,13 +146,6 @@ You want to see what's in a Fabric Lakehouse table before building a full datafl
 | LLM integration | CLI subprocess (`copilot -p` or `claude -p`) | Zero infra, user owns auth + cost, pluggable backend |
 | Editor | Monaco | M syntax highlighting, shared codebase with VS Code |
 
-## Security
-
-- **Electron hardening:** `contextIsolation: true`, `nodeIntegration: false`, `webSecurity: true`
-- **IPC allowlist:** All renderer↔main communication through strict typed channels
-- **Context Preview:** Every LLM call shows you exactly what will be sent before it leaves your machine
-- **Dangerous function linter:** Warns before executing `Web.Contents`, `File.Contents`, `Sql.Database`, `AdoDotNet.Query`, `Expression.Evaluate`
-- **No secrets stored:** Auth tokens managed by MSAL; LLM auth owned by the CLI tools
 
 ## Tech Stack
 
