@@ -13,6 +13,7 @@ import {
   clearExecuteQueryErrorMarkers,
 } from '../lsp/apiErrorMarkers';
 import { pqMonacoDark, pqMonacoLight } from '../theme/monacoTheme';
+import { fonts } from '../theme/brand';
 
 const PQ_MONACO_DARK = 'pq-dark';
 const PQ_MONACO_LIGHT = 'pq-light';
@@ -255,6 +256,8 @@ export function QueryEditor({
           beforeMount={handleBeforeMount}
           options={{
             minimap: { enabled: false },
+            fontFamily: fonts.mono,
+            fontLigatures: true,
             fontSize: 14,
             lineNumbers: 'on',
             scrollBeyondLastLine: false,
