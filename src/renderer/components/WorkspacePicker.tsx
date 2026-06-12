@@ -34,7 +34,7 @@ export function WorkspacePicker({ workspaces, value, onChange }: Props) {
         aria-label="Workspace"
       />
       <Combobox
-        placeholder="Workspace…"
+        placeholder="Search workspaces…"
         size="small"
         value={query || selectedName}
         selectedOptions={value ? [value] : []}
