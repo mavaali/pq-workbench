@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import Editor, { OnMount } from '@monaco-editor/react';
+import Editor, { OnMount, BeforeMount } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
 import { Toolbar, ToolbarButton, Tooltip, Spinner } from '@fluentui/react-components';
 import { PlayRegular, DismissCircleRegular } from '@fluentui/react-icons';
@@ -96,15 +96,26 @@ export function QueryEditor({
     }
   }, [apiError]);
 
+  // Register PQ Monaco themes BEFORE editor construction so the initial
+  // `theme="pq-dark"` prop resolves to our palette instead of Monaco's
+  // default fallback (vs-light). Without this, the first paint after a
+  // cold start is white in dark mode until the user toggles theme once.
+  const handleBeforeMount: BeforeMount = (monaco) => {
+    if (!monacoThemesRegistered) {
+      monaco.editor.defineTheme(PQ_MONACO_DARK, pqMonacoDark);
+      monaco.editor.defineTheme(PQ_MONACO_LIGHT, pqMonacoLight);
+      monacoThemesRegistered = true;
+    }
+  };
+
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
     // Set initial value explicitly
     editor.setValue(value);
 
-    // Register the PQ Workbench Monaco themes once per Monaco namespace.
-    // Idempotent — defineTheme is safe to call repeatedly, but the flag
-    // makes the intent explicit.
+    // Defensive: in case the renderer dropped this mount cycle and beforeMount
+    // didn't fire (HMR edge case), make sure themes are registered.
     if (!monacoThemesRegistered) {
       monaco.editor.defineTheme(PQ_MONACO_DARK, pqMonacoDark);
       monaco.editor.defineTheme(PQ_MONACO_LIGHT, pqMonacoLight);
@@ -227,6 +238,7 @@ export function QueryEditor({
             }
           }}
           onMount={handleMount}
+          beforeMount={handleBeforeMount}
           options={{
             minimap: { enabled: false },
             fontSize: 14,
