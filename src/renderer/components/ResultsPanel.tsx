@@ -109,13 +109,7 @@ export function ResultsPanel({ result, suggestedName }: Props) {
         </Button>
       </div>
       <div style={{ overflow: 'auto', flex: 1 }}>
-        <table
-        style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          fontSize: 13,
-        }}
-      >
+        <table className="pq-grid">
         <thead>
           <tr>
             {result.columns.map((col) => (
@@ -123,16 +117,15 @@ export function ResultsPanel({ result, suggestedName }: Props) {
                 key={col.name}
                 onClick={() => handleSort(col.name)}
                 style={{
-                  padding: '6px 12px',
-                  borderBottom: '2px solid #ddd',
-                  textAlign: 'left',
                   cursor: 'pointer',
                   userSelect: 'none',
                   whiteSpace: 'nowrap',
-                  background: '#f8f8f8',
                 }}
               >
                 {col.name}
+                {col.type && (
+                  <span className="pq-type-hint">{col.type}</span>
+                )}
                 {sortCol === col.name && (sortAsc ? ' ▲' : ' ▼')}
               </th>
             ))}
@@ -140,22 +133,19 @@ export function ResultsPanel({ result, suggestedName }: Props) {
         </thead>
         <tbody>
           {sorted.map((row, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+            <tr key={i}>
               {result.columns.map((col) => {
                 const cell = formatCellValue(row[col.name]);
+                const dataType =
+                  cell.align === 'right' ? 'number' :
+                  cell.isNull ? 'null' :
+                  'text';
                 return (
                   <td
                     key={col.name}
-                    style={{
-                      padding: '4px 12px',
-                      whiteSpace: 'nowrap',
-                      textAlign: cell.align,
-                      // Right-align numerics get a monospace font so digits
-                      // line up vertically — classic Excel convention.
-                      fontFamily: cell.align === 'right' ? 'monospace' : undefined,
-                      color: cell.isNull ? '#999' : undefined,
-                      fontStyle: cell.isNull ? 'italic' : undefined,
-                    }}
+                    data-type={dataType}
+                    data-null={cell.isNull ? 'true' : undefined}
+                    style={{ whiteSpace: 'nowrap' }}
                   >
                     {cell.display}
                   </td>

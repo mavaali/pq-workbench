@@ -7,6 +7,11 @@ import { App } from './App';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 
+// Chrome identity layer (Fable theme spec PR-B). Resolves Fluent v9's CSS
+// custom properties for places Fluent components don't reach: sidebar
+// selection accent, results grid typography, etc.
+import './theme/chrome.css';
+
 // Configure Monaco to load from node_modules instead of CDN
 // This avoids CSP issues in Electron
 loader.config({

@@ -327,7 +327,12 @@ function parseArrowResult(
     type: String(f.type),
     nullable: f.nullable,
   }));
-  const columns = allColumns.filter((c) => !HIDDEN_RESPONSE_COLUMNS.has(c.name));
+  const dataColumns = allColumns.filter((c) => !HIDDEN_RESPONSE_COLUMNS.has(c.name));
+  // If filtering removes everything, fall back to showing all columns. This
+  // covers responses that contain ONLY metadata (e.g. queries that compute a
+  // single scalar and round-trip just the PQ Arrow Metadata column) so the
+  // user isn't staring at an empty grid (#45 follow-up).
+  const columns = dataColumns.length > 0 ? dataColumns : allColumns;
 
   // Capture first non-null value of "PQ Arrow Metadata" for Query Info. Cheap;
   // only looks at row 0 because in practice the value is constant per response.
@@ -378,18 +383,22 @@ function parseJsonResult(
     }));
   }
 
-  // Mirror the Arrow path: hide diagnostic columns from the grid.
+  // Mirror the Arrow path: hide diagnostic columns from the grid, but only
+  // when there are other data columns to show (avoid empty-grid regression).
   let pqArrowMetadata: string | undefined;
   if (columns.some((c) => HIDDEN_RESPONSE_COLUMNS.has(c.name))) {
     if (rows.length > 0) {
       const raw = rows[0]['PQ Arrow Metadata'];
       if (raw != null) pqArrowMetadata = String(raw);
     }
-    columns = columns.filter((c) => !HIDDEN_RESPONSE_COLUMNS.has(c.name));
-    rows = rows.map((r) => {
-      const { ['PQ Arrow Metadata']: _omit, ...rest } = r;
-      return rest;
-    });
+    const filteredColumns = columns.filter((c) => !HIDDEN_RESPONSE_COLUMNS.has(c.name));
+    if (filteredColumns.length > 0) {
+      columns = filteredColumns;
+      rows = rows.map((r) => {
+        const { ['PQ Arrow Metadata']: _omit, ...rest } = r;
+        return rest;
+      });
+    }
   }
 
   return { columns, rows, rowCount: rawRows.length, executionTimeMs: elapsedMs, pqArrowMetadata };
