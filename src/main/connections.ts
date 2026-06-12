@@ -692,7 +692,8 @@ export type BindingAnalysis =
 export async function analyzeForBinding(
   workspaceId: string,
   dataflowId: string,
-  mashupOverride?: string
+  mashupOverride?: string,
+  excludeConnectionIds?: string[]
 ): Promise<BindingAnalysis> {
   const [{ mashup, boundConnections }, allConnections] = await Promise.all([
     getDataflowDefinition(workspaceId, dataflowId),
@@ -707,13 +708,17 @@ export async function analyzeForBinding(
   // actually has working credentials (credentialDetails != null).
   const connById = new Map(allConnections.map((c) => [c.id, c]));
 
-  // A binding is "covered" only when its underlying connection is also
-  // authenticated. Bound-but-unauthenticated connections silently fail at
-  // executeQuery time ("Credentials are required to connect to the … source"),
-  // so we treat them as missing and let the user pick an authenticated one.
+  // Bindings the caller has explicitly marked as known-bad (e.g. a previous
+  // executeQuery failed against them with "Credentials are required …").
+  // Treat them as unusable so the modal re-opens with alternatives.
+  const excluded = new Set((excludeConnectionIds || []).map((s) => s.toLowerCase()));
+
+  // A binding is "covered" only when its underlying connection is
+  // authenticated AND not on the failed-attempts list.
   const usableBoundTypes = new Set(
     boundConnections
       .filter((b) => {
+        if (excluded.has(b.datasourceId.toLowerCase())) return false;
         const conn = connById.get(b.datasourceId);
         return !!conn?.credentialDetails;
       })
@@ -740,10 +745,12 @@ export async function analyzeForBinding(
 
   // Per-URL Web analysis: each URL must be covered by a bound Web connection
   // whose path is a prefix of the URL (host + path-prefix match) AND whose
-  // underlying connection is authenticated. If not, list it as missing.
+  // underlying connection is authenticated AND not on the failed-attempts
+  // list. If not, list it as missing.
   if (webUrls.length) {
     const boundWebPaths = boundConnections
       .filter((b) => b.kind === 'Web')
+      .filter((b) => !excluded.has(b.datasourceId.toLowerCase()))
       .filter((b) => !!connById.get(b.datasourceId)?.credentialDetails)
       .map((b) => b.path);
     const webConnections = allConnections.filter((c) => c.connectionDetails?.type === 'Web');

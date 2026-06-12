@@ -220,6 +220,21 @@ export function App() {
   const newExecutionId = () =>
     `exec-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
+  // Per-tab set of bound connection IDs that produced "Credentials are
+  // required to connect to the … source" on a recent executeQuery. Passed
+  // to connections.analyze on subsequent Runs so the binding is treated as
+  // unusable and the modal re-opens with alternatives (Lakehouse case
+  // where multiple authenticated connections of the same type exist but
+  // only one matches the query's underlying workspace/lakehouse).
+  const failedBindingsRef = useRef<Map<string, Set<string>>>(new Map());
+
+  /** Match the Fabric "Credentials are required to connect to the X source"
+   *  error and return the source kind, or null if the error is something else. */
+  const extractCredentialsErrorKind = (msg: string): string | null => {
+    const m = /Credentials are required to connect to the (\w+) source/i.exec(msg);
+    return m ? m[1] : null;
+  };
+
   const runForTab = useCallback(
     async (tabId: string) => {
       const tab = tabs.find((t) => t.id === tabId);
@@ -230,12 +245,15 @@ export function App() {
       if (!tab.workspaceId || !tab.dataflowId) return;
 
       const api = (window as any).pqWorkbench;
+      const tabFailed = failedBindingsRef.current.get(tab.id);
+      const excludeIds = tabFailed ? Array.from(tabFailed) : undefined;
       if (api?.connections?.analyze) {
         try {
           const analysis = await api.connections.analyze(
             tab.workspaceId,
             tab.dataflowId,
-            tab.activeQueryDoc || tab.mCode
+            tab.activeQueryDoc || tab.mCode,
+            excludeIds
           );
           if (!analysis.ready) {
             // Auto-bind path: if EVERY missing source has at least one
@@ -321,6 +339,64 @@ export function App() {
         executionId
       );
       executionIdsRef.current.delete(tab.id);
+
+      // executeQuery returns Error (not null) on failure now. Detect the
+      // "Credentials are required to connect to the X source" case — Fabric
+      // returns this when a bound+authenticated connection exists but maps
+      // to a different lakehouse/warehouse than the query needs (see #79
+      // follow-up). Mark the offending binding as failed, re-analyze, and
+      // re-open the bind modal so the user can pick another connection of
+      // the same kind.
+      if (result instanceof Error) {
+        const kind = extractCredentialsErrorKind(result.message);
+        if (kind && api?.connections?.analyze) {
+          updateTab(tab.id, { loading: false });
+          try {
+            const freshAnalysis = await api.connections.analyze(
+              tab.workspaceId,
+              tab.dataflowId,
+              tab.activeQueryDoc || tab.mCode
+            );
+            const offending = (freshAnalysis.bound as Array<{ kind: string; datasourceId: string }>)
+              .filter((b) => b.kind === kind)
+              .map((b) => b.datasourceId);
+            if (offending.length) {
+              const set = failedBindingsRef.current.get(tab.id) ?? new Set<string>();
+              for (const id of offending) set.add(id);
+              failedBindingsRef.current.set(tab.id, set);
+            }
+            // Re-analyze with the failed bindings excluded; this now reports
+            // the source kind as missing so we can open the modal.
+            const retryAnalysis = await api.connections.analyze(
+              tab.workspaceId,
+              tab.dataflowId,
+              tab.activeQueryDoc || tab.mCode,
+              Array.from(failedBindingsRef.current.get(tab.id) ?? [])
+            );
+            setBindMissing(retryAnalysis.missing);
+            setBindBound(retryAnalysis.bound);
+            setBindError(
+              `${kind} connection bound to this dataflow doesn't have access to the data ` +
+              `the query needs. Pick a different ${kind} connection that's authenticated ` +
+              `against the right workspace.`
+            );
+            setPendingExec({
+              workspaceId: tab.workspaceId,
+              dataflowId: tab.dataflowId,
+              expression: tab.mCode,
+              queryName: tab.activeQueryName,
+              originalDocument: tab.activeQueryDoc,
+              tabId: tab.id,
+            });
+            setBindOpen(true);
+            return;
+          } catch (e: unknown) {
+            console.warn('[App] post-execute analyze for rebind failed:', e);
+          }
+        }
+        return;
+      }
+
       updateTab(tab.id, {
         loading: false,
         queryResult: result ?? tab.queryResult,
@@ -352,10 +428,15 @@ export function App() {
       setBinding(true);
       setBindError(null);
       try {
+        // Clear existing bindings so the previously failed connection is
+        // actually replaced. Without clearExisting Fabric would keep both
+        // and re-pick the wrong one. Safe because the modal lists picks
+        // for ALL sources the query needs.
         await api.connections.bind(
           pendingExec.workspaceId,
           pendingExec.dataflowId,
-          connectionIds
+          connectionIds,
+          true
         );
         setBindOpen(false);
         updateTab(pendingExec.tabId, { loading: true });
@@ -367,11 +448,33 @@ export function App() {
           pendingExec.queryName,
           pendingExec.originalDocument
         );
+        if (result instanceof Error) {
+          // The user's manual pick also failed. If it's another credentials
+          // error, mark these connection IDs as failed and re-trigger Run
+          // so the modal opens again with the remaining alternatives.
+          updateTab(pendingExec.tabId, { loading: false });
+          const kind = extractCredentialsErrorKind(result.message);
+          if (kind) {
+            const set = failedBindingsRef.current.get(pendingExec.tabId) ?? new Set<string>();
+            for (const id of connectionIds) set.add(id);
+            failedBindingsRef.current.set(pendingExec.tabId, set);
+            const tabId = pendingExec.tabId;
+            setPendingExec(null);
+            // Defer to the next tick so the modal close + state settle first.
+            setTimeout(() => runForTab(tabId), 0);
+            return;
+          }
+          setPendingExec(null);
+          return;
+        }
         updateTab(pendingExec.tabId, {
           loading: false,
           queryResult: result ?? null,
           ...(result ? { mCodeBaseline: pendingExec.expression } : {}),
         });
+        // User picked successfully — clear the failed-bindings memory for
+        // this tab so the next Run starts fresh.
+        failedBindingsRef.current.delete(pendingExec.tabId);
         setPendingExec(null);
       } catch (e: unknown) {
         setBindError(e instanceof Error ? e.message : String(e));
@@ -379,7 +482,7 @@ export function App() {
         setBinding(false);
       }
     },
-    [pendingExec, executeQuery, updateTab]
+    [pendingExec, executeQuery, updateTab, runForTab]
   );
 
   const handleBindCancel = useCallback(() => {

@@ -215,7 +215,8 @@ export function registerIpcHandlers(): void {
       _e: IpcMainInvokeEvent,
       workspaceId: string,
       dataflowId: string,
-      mashupOverride?: string
+      mashupOverride?: string,
+      excludeConnectionIds?: string[]
     ) => {
       if (!workspaceId || typeof workspaceId !== 'string') {
         throw new Error('workspaceId is required');
@@ -223,7 +224,10 @@ export function registerIpcHandlers(): void {
       if (!dataflowId || typeof dataflowId !== 'string') {
         throw new Error('dataflowId is required');
       }
-      return connections.analyzeForBinding(workspaceId, dataflowId, mashupOverride);
+      const exclude = Array.isArray(excludeConnectionIds)
+        ? excludeConnectionIds.filter((s): s is string => typeof s === 'string')
+        : undefined;
+      return connections.analyzeForBinding(workspaceId, dataflowId, mashupOverride, exclude);
     }
   );
 

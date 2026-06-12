@@ -50,8 +50,8 @@ contextBridge.exposeInMainWorld('pqWorkbench', {
       invoke(IPC_CHANNELS.CONNECTIONS_BIND, workspaceId, dataflowId, connectionIds, clearExisting),
     dumpInspect: (workspaceId: string, dataflowId: string) =>
       invoke<string>(IPC_CHANNELS.CONNECTIONS_DUMP_INSPECT, workspaceId, dataflowId),
-    analyze: (workspaceId: string, dataflowId: string, mashupOverride?: string) =>
-      invoke(IPC_CHANNELS.CONNECTIONS_ANALYZE, workspaceId, dataflowId, mashupOverride),
+    analyze: (workspaceId: string, dataflowId: string, mashupOverride?: string, excludeConnectionIds?: string[]) =>
+      invoke(IPC_CHANNELS.CONNECTIONS_ANALYZE, workspaceId, dataflowId, mashupOverride, excludeConnectionIds),
   },
   exportCsv: (csvContent: string, suggestedName?: string) =>
     invoke<{ path: string } | { canceled: true }>(IPC_CHANNELS.EXPORT_CSV, csvContent, suggestedName),
