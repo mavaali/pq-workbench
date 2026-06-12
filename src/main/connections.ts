@@ -703,14 +703,29 @@ export async function analyzeForBinding(
   const detected = detectSourceTypesInMashup(scanned);
   const webUrls = extractWebUrlsFromMashup(scanned);
 
-  const boundTypes = new Set(boundConnections.map((b) => b.kind));
+  // Index connections by id so we can check whether a bound connection
+  // actually has working credentials (credentialDetails != null).
+  const connById = new Map(allConnections.map((c) => [c.id, c]));
+
+  // A binding is "covered" only when its underlying connection is also
+  // authenticated. Bound-but-unauthenticated connections silently fail at
+  // executeQuery time ("Credentials are required to connect to the … source"),
+  // so we treat them as missing and let the user pick an authenticated one.
+  const usableBoundTypes = new Set(
+    boundConnections
+      .filter((b) => {
+        const conn = connById.get(b.datasourceId);
+        return !!conn?.credentialDetails;
+      })
+      .map((b) => b.kind)
+  );
   const missing: MissingSourceBinding[] = [];
 
   for (const d of detected) {
     // Web sources get per-URL analysis instead of per-type
     if (d.sourceKind === 'Web') continue;
 
-    const covered = d.acceptableTypes.some((t) => boundTypes.has(t));
+    const covered = d.acceptableTypes.some((t) => usableBoundTypes.has(t));
     if (covered) continue;
     const candidates = rankCandidates(
       allConnections.filter((c) => d.acceptableTypes.includes(c.connectionDetails?.type || ''))
@@ -724,10 +739,13 @@ export async function analyzeForBinding(
   }
 
   // Per-URL Web analysis: each URL must be covered by a bound Web connection
-  // whose path is a prefix of the URL (host + path-prefix match). If not, list
-  // it as missing, with candidates ranked by URL-match score then by recency.
+  // whose path is a prefix of the URL (host + path-prefix match) AND whose
+  // underlying connection is authenticated. If not, list it as missing.
   if (webUrls.length) {
-    const boundWebPaths = boundConnections.filter((b) => b.kind === 'Web').map((b) => b.path);
+    const boundWebPaths = boundConnections
+      .filter((b) => b.kind === 'Web')
+      .filter((b) => !!connById.get(b.datasourceId)?.credentialDetails)
+      .map((b) => b.path);
     const webConnections = allConnections.filter((c) => c.connectionDetails?.type === 'Web');
 
     for (const wu of webUrls) {
