@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
-import { Toolbar, ToolbarButton } from '@fluentui/react-components';
+import { Toolbar, ToolbarButton, Tooltip } from '@fluentui/react-components';
 import { PlayRegular } from '@fluentui/react-icons';
 import {
   POWERQUERY_LANGUAGE_ID,
@@ -22,13 +22,35 @@ interface Props {
   /** Error message from the most recent executeQuery call, or null. When set
    *  and a position is parseable, a marker is placed on the editor. */
   apiError?: string | null;
+  /** When set, the Run button + Ctrl+Enter are disabled and this string is
+   *  shown as a tooltip. Used to gate execution when no dataflow is bound
+   *  (issue #44). */
+  runDisabledReason?: string | null;
 }
 
-export function QueryEditor({ value, onChange, onRun, loading, dark, apiError }: Props) {
+export function QueryEditor({
+  value,
+  onChange,
+  onRun,
+  loading,
+  dark,
+  apiError,
+  runDisabledReason,
+}: Props) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const isSettingValue = useRef(false);
   const analysisHandleRef = useRef<AnalysisHandle | null>(null);
+  // Ref so the Monaco keybinding closure sees the latest disabled state
+  // without us having to re-register the action on every render.
+  const runGuardRef = useRef<{ disabled: boolean; onRun: () => void }>({
+    disabled: !!runDisabledReason || loading,
+    onRun,
+  });
+  runGuardRef.current = {
+    disabled: !!runDisabledReason || loading,
+    onRun,
+  };
 
   // Tear down the per-model Analysis when the component unmounts.
   useEffect(() => {
@@ -106,12 +128,17 @@ export function QueryEditor({ value, onChange, onRun, loading, dark, apiError }:
       },
     });
 
-    // Ctrl/Cmd+Enter keybinding
+    // Ctrl/Cmd+Enter keybinding — gated by runGuardRef so we don't fire a
+    // doomed executeQuery when no dataflow is bound (#44).
     editor.addAction({
       id: 'run-query',
       label: 'Run Query',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-      run: () => onRun(),
+      run: () => {
+        const guard = runGuardRef.current;
+        if (guard.disabled) return;
+        guard.onRun();
+      },
     });
 
     // Attach Microsoft powerquery-language-services to this model.
@@ -122,17 +149,30 @@ export function QueryEditor({ value, onChange, onRun, loading, dark, apiError }:
     }
   };
 
+  const runDisabled = !!runDisabledReason || loading;
+  const runButton = (
+    <ToolbarButton
+      icon={<PlayRegular />}
+      onClick={onRun}
+      disabled={runDisabled}
+      appearance="primary"
+      aria-label={runDisabledReason ?? 'Run query'}
+    >
+      Run (Ctrl+Enter)
+    </ToolbarButton>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar size="small" style={{ padding: '4px 8px', flexShrink: 0 }}>
-        <ToolbarButton
-          icon={<PlayRegular />}
-          onClick={onRun}
-          disabled={loading}
-          appearance="primary"
-        >
-          Run (Ctrl+Enter)
-        </ToolbarButton>
+        {runDisabledReason ? (
+          <Tooltip content={runDisabledReason} relationship="label" withArrow>
+            {/* span wrapper so the tooltip still triggers on a disabled button */}
+            <span style={{ display: 'inline-flex' }}>{runButton}</span>
+          </Tooltip>
+        ) : (
+          runButton
+        )}
       </Toolbar>
       <div style={{ flex: 1, minHeight: 0 }}>
         <Editor
