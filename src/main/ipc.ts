@@ -74,6 +74,11 @@ export function registerIpcHandlers(): void {
     }
   );
 
+  // ── ExecuteQuery cancellation registry ────────────────────────────────
+  // Renderer generates an opaque executionId per Run; main holds the
+  // AbortController until completion or cancel.
+  const executeAborts = new Map<string, AbortController>();
+
   ipcMain.handle(
     IPC_CHANNELS.FABRIC_EXECUTE_QUERY,
     async (
@@ -83,7 +88,8 @@ export function registerIpcHandlers(): void {
       expression: string,
       topN?: number,
       queryName?: string,
-      originalDocument?: string
+      originalDocument?: string,
+      executionId?: string
     ) => {
       if (!workspaceId || typeof workspaceId !== 'string') {
         throw new Error('workspaceId is required');
@@ -94,7 +100,42 @@ export function registerIpcHandlers(): void {
       if (!expression || typeof expression !== 'string') {
         throw new Error('expression is required');
       }
-      return fabric.evaluateQuery(workspaceId, dataflowId, expression, topN, queryName, originalDocument);
+      let controller: AbortController | undefined;
+      if (executionId && typeof executionId === 'string') {
+        controller = new AbortController();
+        executeAborts.set(executionId, controller);
+      }
+      try {
+        return await fabric.evaluateQuery(
+          workspaceId,
+          dataflowId,
+          expression,
+          topN,
+          queryName,
+          originalDocument,
+          controller?.signal
+        );
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw new fabric.ExecuteCancelledError();
+        }
+        throw err;
+      } finally {
+        if (executionId) executeAborts.delete(executionId);
+      }
+    }
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.FABRIC_CANCEL_EXECUTE,
+    async (_e: IpcMainInvokeEvent, executionId: string) => {
+      const ctrl = executeAborts.get(executionId);
+      if (ctrl) {
+        ctrl.abort();
+        executeAborts.delete(executionId);
+        return { cancelled: true };
+      }
+      return { cancelled: false };
     }
   );
 

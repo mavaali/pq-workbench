@@ -9,6 +9,7 @@ export const IPC_CHANNELS = {
   FABRIC_CHECK_ELIGIBILITY: 'fabric:check-eligibility',
   FABRIC_CREATE_DATAFLOW: 'fabric:create-dataflow',
   FABRIC_EXECUTE_QUERY: 'fabric:execute-query',
+  FABRIC_CANCEL_EXECUTE: 'fabric:cancel-execute',
   FABRIC_GET_QUERIES: 'fabric:get-queries',
   CONNECTIONS_LIST: 'connections:list',
   CONNECTIONS_LIST_CLUSTERS: 'connections:list-clusters',

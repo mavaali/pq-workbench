@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   FluentProvider,
   webLightTheme,
@@ -80,6 +80,7 @@ export function App() {
     fetchQueries,
     createDataflow,
     executeQuery,
+    cancelExecute,
     generateMCode,
     checkLlmAvailability,
     setError,
@@ -193,6 +194,11 @@ export function App() {
     [activeTab?.workspaceId, fetchQueries, updateActiveTab, dataflows]
   );
 
+  // Per-tab in-flight executionId so Cancel can target the right call (#55).
+  const executionIdsRef = useRef<Map<string, string>>(new Map());
+  const newExecutionId = () =>
+    `exec-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
   const runForTab = useCallback(
     async (tabId: string) => {
       const tab = tabs.find((t) => t.id === tabId);
@@ -232,6 +238,8 @@ export function App() {
         }
       }
 
+      const executionId = newExecutionId();
+      executionIdsRef.current.set(tab.id, executionId);
       updateTab(tab.id, { loading: true });
       const result = await executeQuery(
         tab.workspaceId,
@@ -239,8 +247,10 @@ export function App() {
         tab.mCode,
         undefined,
         tab.activeQueryName,
-        tab.activeQueryDoc
+        tab.activeQueryDoc,
+        executionId
       );
+      executionIdsRef.current.delete(tab.id);
       updateTab(tab.id, {
         loading: false,
         queryResult: result ?? tab.queryResult,
@@ -254,6 +264,16 @@ export function App() {
   const handleRun = useCallback(() => {
     if (activeTabId) runForTab(activeTabId);
   }, [activeTabId, runForTab]);
+
+  const handleCancelRun = useCallback(() => {
+    if (!activeTabId) return;
+    const executionId = executionIdsRef.current.get(activeTabId);
+    if (!executionId) return;
+    cancelExecute(executionId);
+    // Optimistically clear the loading spinner; the awaiting executeQuery
+    // will resolve with null (error: "Query cancelled") which we suppress.
+    executionIdsRef.current.delete(activeTabId);
+  }, [activeTabId, cancelExecute]);
 
   const handleBindConfirm = useCallback(
     async (connectionIds: string[]) => {
@@ -533,6 +553,7 @@ export function App() {
                       })
                     }
                     onRun={handleRun}
+                    onCancel={handleCancelRun}
                     loading={tabLoading}
                     dark={dark}
                     apiError={error}

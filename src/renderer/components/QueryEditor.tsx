@@ -1,8 +1,8 @@
 import { useRef, useEffect } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
-import { Toolbar, ToolbarButton, Tooltip } from '@fluentui/react-components';
-import { PlayRegular } from '@fluentui/react-icons';
+import { Toolbar, ToolbarButton, Tooltip, Spinner } from '@fluentui/react-components';
+import { PlayRegular, DismissCircleRegular } from '@fluentui/react-icons';
 import {
   POWERQUERY_LANGUAGE_ID,
   attachAnalysisToModel,
@@ -17,6 +17,9 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   onRun: () => void;
+  /** Cancel the in-flight executeQuery (#55). When loading=true the Run
+   *  button transitions into a Cancel affordance that invokes this. */
+  onCancel?: () => void;
   loading: boolean;
   dark: boolean;
   /** Error message from the most recent executeQuery call, or null. When set
@@ -32,6 +35,7 @@ export function QueryEditor({
   value,
   onChange,
   onRun,
+  onCancel,
   loading,
   dark,
   apiError,
@@ -161,11 +165,26 @@ export function QueryEditor({
       Run (Ctrl+Enter)
     </ToolbarButton>
   );
+  const cancelButton = (
+    <ToolbarButton
+      icon={<Spinner size="extra-tiny" />}
+      onClick={onCancel}
+      appearance="primary"
+      aria-label="Cancel running query"
+    >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        Cancel
+        <DismissCircleRegular />
+      </span>
+    </ToolbarButton>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar size="small" style={{ padding: '4px 8px', flexShrink: 0 }}>
-        {runDisabledReason ? (
+        {loading && onCancel ? (
+          cancelButton
+        ) : runDisabledReason ? (
           <Tooltip content={runDisabledReason} relationship="label" withArrow>
             {/* span wrapper so the tooltip still triggers on a disabled button */}
             <span style={{ display: 'inline-flex' }}>{runButton}</span>

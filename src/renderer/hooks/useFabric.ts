@@ -181,17 +181,24 @@ export function useFabric() {
   }, []);
 
   const executeQuery = useCallback(
-    async (workspaceId: string, dataflowId: string, expression: string, topN?: number, queryName?: string, originalDocument?: string) => {
+    async (workspaceId: string, dataflowId: string, expression: string, topN?: number, queryName?: string, originalDocument?: string, executionId?: string) => {
       setLoading(true);
       setError(null);
       try {
         const result = api
-          ? await api.fabric.executeQuery(workspaceId, dataflowId, expression, topN, queryName, originalDocument)
+          ? await api.fabric.executeQuery(workspaceId, dataflowId, expression, topN, queryName, originalDocument, executionId)
           : MOCK_QUERY_RESULT;
         setQueryResult(result);
         return result;
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e));
+        const msg = e instanceof Error ? e.message : String(e);
+        // User-initiated cancel — surface as null without raising an error
+        // toast. Distinguished by the ExecuteCancelledError name baked into
+        // the IPC message (see src/main/fabric.ts).
+        if (msg.includes('Query cancelled') || /ExecuteCancelledError/.test(msg)) {
+          return null;
+        }
+        setError(msg);
         return null;
       } finally {
         setLoading(false);
@@ -199,6 +206,11 @@ export function useFabric() {
     },
     []
   );
+
+  const cancelExecute = useCallback(async (executionId: string) => {
+    if (!api) return { cancelled: false };
+    return api.fabric.cancelExecute(executionId);
+  }, []);
 
   const generateMCode = useCallback(
     async (provider: LlmProvider, prompt: string, context?: string[]): Promise<LlmResult | null> => {
@@ -253,6 +265,7 @@ export function useFabric() {
     fetchQueries,
     createDataflow,
     executeQuery,
+    cancelExecute,
     generateMCode,
     checkLlmAvailability,
     setError,
