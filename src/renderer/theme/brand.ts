@@ -49,6 +49,9 @@ export const syntax = {
 } as const;
 
 export const fonts = {
+  // JetBrains Mono is bundled via @fontsource (see src/renderer/index.tsx)
+  // for consistent code rendering across macOS / Windows / Linux. Fallback
+  // stack covers the rare cases where the bundled font fails to load.
   mono: `"JetBrains Mono", "SF Mono", "Cascadia Code", Consolas, monospace`,
   sans: `"Segoe UI Variable", "Segoe UI", -apple-system, system-ui, sans-serif`,
 } as const;
